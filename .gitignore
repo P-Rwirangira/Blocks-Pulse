@@ -1,0 +1,14 @@
+# Local development state
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+
+# Generated prototype assets and temporary inspection files
+tmp/
+
+# Local-only commit history helpers; do not track or push
+docs/COMMIT_RULES.md
+scripts/commit-next-day.ps1
