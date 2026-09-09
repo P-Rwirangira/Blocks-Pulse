@@ -12,6 +12,14 @@ class HealthStatus(StrEnum):
     CRITICAL = "critical"
 
 
+class IncidentStatus(StrEnum):
+    OPEN = "open"
+    INVESTIGATING = "investigating"
+    ACKNOWLEDGED = "acknowledged"
+    RESOLVED = "resolved"
+    SUPPRESSED = "suppressed"
+
+
 class RpcObservation(BaseModel):
     """One measured JSON-RPC request result."""
 
@@ -51,3 +59,15 @@ class AnomalyEvent(BaseModel):
     drivers: list[str]
     metric: HealthMetric
 
+
+class Incident(BaseModel):
+    """Operator-facing lifecycle record for an anomaly."""
+
+    incident_id: str
+    chain_id: int = Field(gt=0)
+    created_at: datetime
+    status: IncidentStatus = IncidentStatus.OPEN
+    severity: HealthStatus
+    title: str
+    anomaly_event_id: str
+    evidence_ids: list[str] = Field(default_factory=list)
