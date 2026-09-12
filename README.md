@@ -4,6 +4,20 @@ BlockPulse is a multi-chain health, liquidity, anomaly-detection, and evidence-g
 
 The current repository begins with the expanded product prototype and the engineering rules that will guide the implementation. The MVP intentionally excludes profitability, trade execution, bridges, and autonomous actions.
 
+## Phase 1 status
+
+The first vertical slice monitors Base RPC health. It includes typed configuration, an async JSON-RPC adapter, retries and failover, idempotent PostgreSQL-compatible persistence, deterministic health metrics, anomaly and incident detection, a FastAPI health endpoint, and a one-shot collector command.
+
+```powershell
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+docker compose up -d postgres
+blockpulse-collect
+uvicorn blockpulse.api:app --reload
+```
+
+The collector requires a real Base RPC URL in `.env`. Tests use deterministic fakes and SQLite, so they do not require live blockchain access.
+
 ## MVP direction
 
 - Monitor Ethereum, Base, and Arbitrum.

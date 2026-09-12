@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 .env
 .env.*
+!.env.example
 
 # Generated prototype assets and temporary inspection files
 tmp/
