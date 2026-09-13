@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./blockpulse.db"
     base_chain_id: int = Field(default=8453, gt=0)
     base_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
+    ethereum_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
+    arbitrum_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
     rpc_timeout_seconds: float = Field(default=10.0, gt=0)
     rpc_confirmations: int = Field(default=2, ge=0)
     health_window_minutes: int = Field(default=15, gt=0)
@@ -33,4 +35,3 @@ def get_settings() -> Settings:
     """Return one cached settings instance for the process."""
 
     return Settings()
-
