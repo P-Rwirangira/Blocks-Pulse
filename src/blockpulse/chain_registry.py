@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from blockpulse.config import Settings
+from blockpulse.rpc import JsonRpcProvider
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,3 +42,16 @@ def enabled_chains(settings: Settings) -> tuple[ChainDefinition, ...]:
 
     return tuple(chain for chain in configured_chains(settings) if chain.rpc_urls)
 
+
+def providers_for_chain(chain: ChainDefinition, timeout_seconds: float) -> tuple[JsonRpcProvider, ...]:
+    """Create standard RPC adapters for a configured chain."""
+
+    return tuple(
+        JsonRpcProvider(
+            name=f"{chain.name}-{index + 1}",
+            chain_id=chain.chain_id,
+            url=url,
+            timeout_seconds=timeout_seconds,
+        )
+        for index, url in enumerate(chain.rpc_urls)
+    )

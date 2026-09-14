@@ -2,6 +2,8 @@ import asyncio
 from datetime import UTC, datetime
 
 from blockpulse.collection_service import CollectionService
+from blockpulse.collection_service import MultiChainCollectionService
+from blockpulse.chain_registry import ChainDefinition
 from blockpulse.domain import RpcObservation
 
 
@@ -38,3 +40,18 @@ def test_collection_service_persists_one_cycle() -> None:
     assert inserted == 1
     assert repository.saved[0].latest_block_number == 123
 
+
+def test_multi_chain_service_collects_each_chain() -> None:
+    async def scenario() -> None:
+        repository = FakeRepository()
+        chains = {
+            ChainDefinition("base", 8453, ("https://base.example",)): [FakeProvider()],
+            ChainDefinition("arbitrum", 42161, ("https://arb.example",)): [FakeProvider()],
+        }
+        results, inserted = await MultiChainCollectionService(chains, repository).collect_once(
+            datetime.now(UTC)
+        )
+        assert set(results) == {8453, 42161}
+        assert inserted == 2
+
+    asyncio.run(scenario())
