@@ -2,8 +2,9 @@
 
 from fastapi import FastAPI, HTTPException
 
+from blockpulse.chain_registry import configured_chains
 from blockpulse.config import get_settings
-from blockpulse.domain import HealthMetric
+from blockpulse.domain import HealthMetric, HealthOverview
 from blockpulse.health_service import HealthService
 from blockpulse.storage import Database, ObservationRepository
 
@@ -19,6 +20,18 @@ def create_app(database: Database | None = None) -> FastAPI:
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/api/v1/chains")
+    async def chains() -> list[dict[str, object]]:
+        return [
+            {
+                "name": chain.name,
+                "chain_id": chain.chain_id,
+                "configured": bool(chain.rpc_urls),
+                "endpoint_count": len(chain.rpc_urls),
+            }
+            for chain in configured_chains(settings)
+        ]
+
     @app.get("/api/v1/chains/{chain_id}/health", response_model=HealthMetric)
     async def chain_health(chain_id: int) -> HealthMetric:
         async with app.state.database.sessions() as session:
@@ -28,8 +41,13 @@ def create_app(database: Database | None = None) -> FastAPI:
             except LookupError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.get("/api/v1/overview", response_model=HealthOverview)
+    async def overview() -> HealthOverview:
+        async with app.state.database.sessions() as session:
+            service = HealthService(ObservationRepository(session))
+            return await service.overview(configured_chains(settings), settings.health_window_minutes)
+
     return app
 
 
 app = create_app()
-

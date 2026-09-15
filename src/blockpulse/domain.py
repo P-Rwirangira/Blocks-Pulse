@@ -71,3 +71,19 @@ class Incident(BaseModel):
     title: str
     anomaly_event_id: str
     evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ChainHealthSummary(BaseModel):
+    """Named health summary for one configured chain."""
+
+    name: str
+    metric: HealthMetric
+
+
+class HealthOverview(BaseModel):
+    """Cross-chain health view for the operator dashboard."""
+
+    measured_at: datetime
+    chains: list[ChainHealthSummary]
+    healthiest_chain: str | None = None
+    least_healthy_chain: str | None = None
