@@ -6,7 +6,7 @@ The current repository begins with the expanded product prototype and the engine
 
 ## Phase 1 status
 
-The first vertical slice monitors Base RPC health. It includes typed configuration, an async JSON-RPC adapter, retries and failover, idempotent PostgreSQL-compatible persistence, deterministic health metrics, anomaly and incident detection, a FastAPI health endpoint, and a one-shot collector command.
+Phase 1 monitors Base RPC health. Phase 2 generalizes the same vertical slice across Ethereum, Base, and Arbitrum using a configuration-driven registry. It includes typed configuration, an async JSON-RPC adapter, retries and failover, idempotent PostgreSQL-compatible persistence, deterministic health metrics, anomaly and incident detection, per-chain and cross-chain FastAPI health endpoints, and a one-shot collector command.
 
 ```powershell
 python -m pip install -e ".[dev]"
@@ -17,6 +17,8 @@ uvicorn blockpulse.api:app --reload
 ```
 
 The collector requires a real Base RPC URL in `.env`. Tests use deterministic fakes and SQLite, so they do not require live blockchain access.
+
+The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others.
 
 ## MVP direction
 
