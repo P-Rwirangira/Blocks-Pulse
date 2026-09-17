@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     rpc_timeout_seconds: float = Field(default=10.0, gt=0)
     rpc_confirmations: int = Field(default=2, ge=0)
     health_window_minutes: int = Field(default=15, gt=0)
+    pools_json: str = "[]"
 
 
 @lru_cache(maxsize=1)
