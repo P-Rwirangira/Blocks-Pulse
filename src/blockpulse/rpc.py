@@ -5,12 +5,25 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from pydantic import BaseModel, Field
 
 from blockpulse.domain import RpcObservation
 
 
 class RpcProviderError(RuntimeError):
     """Raised when an RPC endpoint cannot provide a valid response."""
+
+
+class RawLog(BaseModel):
+    """Minimal JSON-RPC log envelope used by pool decoders."""
+
+    address: str
+    topics: list[str]
+    data: str
+    block_number: int = Field(ge=0)
+    block_hash: str
+    transaction_hash: str
+    log_index: int = Field(ge=0)
 
 
 class JsonRpcProvider:
@@ -64,3 +77,41 @@ class JsonRpcProvider:
             raise ValueError("RPC result is not a hexadecimal block number")
         return int(result, 16)
 
+    async def get_logs(
+        self, address: str, from_block: int, to_block: int, topics: list[str]
+    ) -> list[RawLog]:
+        """Read logs for an address and inclusive block range."""
+
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            response = await client.post(
+                self.url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "eth_getLogs",
+                    "params": [
+                        {
+                            "address": address,
+                            "fromBlock": hex(from_block),
+                            "toBlock": hex(to_block),
+                            "topics": [topics],
+                        }
+                    ],
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if "error" in payload:
+                raise RpcProviderError(str(payload["error"]))
+            return [
+                RawLog(
+                    address=item["address"],
+                    topics=item["topics"],
+                    data=item["data"],
+                    block_number=int(item["blockNumber"], 16),
+                    block_hash=item["blockHash"],
+                    transaction_hash=item["transactionHash"],
+                    log_index=int(item["logIndex"], 16),
+                )
+                for item in payload["result"]
+            ]
