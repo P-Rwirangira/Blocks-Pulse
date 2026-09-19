@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain import RpcObservation
+from blockpulse.domain import PoolEvent, RpcObservation
 
 
 class Base(DeclarativeBase):
@@ -28,6 +28,26 @@ class RpcObservationRow(Base):
     success: Mapped[bool]
     latest_block_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
+class PoolEventRow(Base):
+    """Append-only normalized pool event record."""
+
+    __tablename__ = "pool_events"
+
+    event_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    pool_id: Mapped[str] = mapped_column(String(120), index=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    block_number: Mapped[int] = mapped_column(Integer, index=True)
+    block_hash: Mapped[str] = mapped_column(String(100))
+    transaction_hash: Mapped[str] = mapped_column(String(100))
+    log_index: Mapped[int] = mapped_column(Integer)
+    event_type: Mapped[str] = mapped_column(String(30), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    amount0: Mapped[float | None] = mapped_column(Float, nullable=True)
+    amount1: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reserve0: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reserve1: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 def observation_id(observation: RpcObservation) -> str:
@@ -86,6 +106,52 @@ class ObservationRepository:
         return list(result)
 
 
+class PoolEventRepository:
+    """Repository implementing idempotent normalized event persistence."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add_many(self, events: Sequence[PoolEvent]) -> int:
+        """Insert normalized events and ignore duplicate event identities."""
+
+        inserted = 0
+        for event in events:
+            if await self.session.get(PoolEventRow, event.event_id) is not None:
+                continue
+            self.session.add(
+                PoolEventRow(
+                    event_id=event.event_id,
+                    pool_id=event.pool_id,
+                    chain_id=event.chain_id,
+                    block_number=event.block_number,
+                    block_hash=event.block_hash,
+                    transaction_hash=event.transaction_hash,
+                    log_index=event.log_index,
+                    event_type=event.event_type,
+                    occurred_at=event.occurred_at,
+                    amount0=event.amount0,
+                    amount1=event.amount1,
+                    reserve0=event.reserve0,
+                    reserve1=event.reserve1,
+                )
+            )
+            inserted += 1
+        await self.session.commit()
+        return inserted
+
+    async def recent(self, pool_id: str, limit: int = 500) -> list[PoolEventRow]:
+        """Return recent events for a pool, newest first."""
+
+        result = await self.session.scalars(
+            select(PoolEventRow)
+            .where(PoolEventRow.pool_id == pool_id)
+            .order_by(PoolEventRow.occurred_at.desc(), PoolEventRow.log_index.desc())
+            .limit(limit)
+        )
+        return list(result)
+
+
 class Database:
     """Own the async engine and session factory."""
 
@@ -99,4 +165,3 @@ class Database:
 
     async def close(self) -> None:
         await self.engine.dispose()
-
