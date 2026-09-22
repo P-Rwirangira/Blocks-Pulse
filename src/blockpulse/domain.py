@@ -101,6 +101,7 @@ class PoolDefinition(BaseModel):
     token1_symbol: str
     token0_decimals: int = Field(ge=0, le=255)
     token1_decimals: int = Field(ge=0, le=255)
+    start_block: int = Field(default=0, ge=0)
 
 
 class PoolEvent(BaseModel):

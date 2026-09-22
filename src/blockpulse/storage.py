@@ -50,6 +50,15 @@ class PoolEventRow(Base):
     reserve1: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class PoolCursorRow(Base):
+    """Last successfully processed confirmed block for one pool."""
+
+    __tablename__ = "pool_cursors"
+
+    pool_id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    last_processed_block: Mapped[int] = mapped_column(Integer)
+
+
 def observation_id(observation: RpcObservation) -> str:
     """Build a deterministic identity for idempotent writes."""
 
@@ -150,6 +159,25 @@ class PoolEventRepository:
             .limit(limit)
         )
         return list(result)
+
+
+class PoolCursorRepository:
+    """Repository for restartable pool block-range cursors."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get(self, pool_id: str) -> int:
+        row = await self.session.get(PoolCursorRow, pool_id)
+        return row.last_processed_block if row else -1
+
+    async def advance(self, pool_id: str, block_number: int) -> None:
+        row = await self.session.get(PoolCursorRow, pool_id)
+        if row is None:
+            self.session.add(PoolCursorRow(pool_id=pool_id, last_processed_block=block_number))
+        elif block_number > row.last_processed_block:
+            row.last_processed_block = block_number
+        await self.session.commit()
 
 
 class Database:
