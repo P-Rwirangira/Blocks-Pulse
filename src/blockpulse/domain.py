@@ -102,6 +102,8 @@ class PoolDefinition(BaseModel):
     token0_decimals: int = Field(ge=0, le=255)
     token1_decimals: int = Field(ge=0, le=255)
     start_block: int = Field(default=0, ge=0)
+    fee_tier: int | None = Field(default=None, ge=0, le=1_000_000)
+    tick_spacing: int | None = Field(default=None, gt=0)
 
 
 class PoolEvent(BaseModel):
@@ -120,6 +122,11 @@ class PoolEvent(BaseModel):
     amount1: float | None = None
     reserve0: float | None = None
     reserve1: float | None = None
+    sqrt_price_x96: int | None = Field(default=None, ge=0)
+    tick: int | None = None
+    active_liquidity: int | None = Field(default=None, ge=0)
+    tick_lower: int | None = None
+    tick_upper: int | None = None
 
 
 class PoolMetric(BaseModel):
@@ -136,3 +143,6 @@ class PoolMetric(BaseModel):
     latest_reserve1: float | None = Field(default=None, ge=0)
     liquidity_change_pct: float | None = None
     price_token1_per_token0: float | None = Field(default=None, ge=0)
+    latest_tick: int | None = None
+    latest_sqrt_price_x96: int | None = Field(default=None, ge=0)
+    active_liquidity: int | None = Field(default=None, ge=0)
