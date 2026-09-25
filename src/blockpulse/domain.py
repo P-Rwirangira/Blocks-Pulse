@@ -146,3 +146,14 @@ class PoolMetric(BaseModel):
     latest_tick: int | None = None
     latest_sqrt_price_x96: int | None = Field(default=None, ge=0)
     active_liquidity: int | None = Field(default=None, ge=0)
+
+
+class V3StateSnapshot(BaseModel):
+    """Point-in-time state read directly from a V3 pool contract."""
+
+    pool_id: str
+    chain_id: int = Field(gt=0)
+    observed_at: datetime
+    sqrt_price_x96: int = Field(ge=0)
+    tick: int
+    active_liquidity: int = Field(ge=0)

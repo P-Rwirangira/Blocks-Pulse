@@ -22,6 +22,9 @@ class RpcProvider(Protocol):
     ) -> list[RawLog]:
         """Read logs for one address and block range."""
 
+    async def eth_call(self, to: str, data: str, block_tag: str = "latest") -> str:
+        """Execute a read-only contract call."""
+
 
 class ObservationRepository(Protocol):
     """Port for durable observation storage."""

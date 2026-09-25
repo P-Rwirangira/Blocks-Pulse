@@ -115,3 +115,25 @@ class JsonRpcProvider:
                 )
                 for item in payload["result"]
             ]
+
+    async def eth_call(self, to: str, data: str, block_tag: str = "latest") -> str:
+        """Execute eth_call and return the ABI-encoded result."""
+
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            response = await client.post(
+                self.url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "eth_call",
+                    "params": [{"to": to, "data": data}, block_tag],
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if "error" in payload:
+                raise RpcProviderError(str(payload["error"]))
+            result = payload["result"]
+            if not isinstance(result, str) or not result.startswith("0x"):
+                raise ValueError("eth_call result is not hexadecimal")
+            return result
