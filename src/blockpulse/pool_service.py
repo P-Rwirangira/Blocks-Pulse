@@ -2,6 +2,7 @@
 
 from blockpulse.domain import PoolDefinition, PoolEvent, PoolMetric
 from blockpulse.pool_monitoring import calculate_pool_metric
+from blockpulse.v3_monitoring import calculate_v3_metric
 from blockpulse.storage import PoolEventRepository
 
 
@@ -28,6 +29,11 @@ class PoolService:
                 amount1=row.amount1,
                 reserve0=row.reserve0,
                 reserve1=row.reserve1,
+                sqrt_price_x96=(int(row.sqrt_price_x96) if row.sqrt_price_x96 is not None else None),
+                tick=row.tick,
+                active_liquidity=(int(row.active_liquidity) if row.active_liquidity is not None else None),
+                tick_lower=row.tick_lower,
+                tick_upper=row.tick_upper,
             )
             for row in rows
         ]
@@ -36,5 +42,6 @@ class PoolService:
         events = await self.events(pool.pool_id)
         if not events:
             raise LookupError(f"no events found for pool {pool.pool_id}")
+        if pool.version.lower() == "v3":
+            return calculate_v3_metric(pool, events, window_minutes)
         return calculate_pool_metric(pool.pool_id, pool.chain_id, events, window_minutes)
-

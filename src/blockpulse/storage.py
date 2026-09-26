@@ -48,6 +48,11 @@ class PoolEventRow(Base):
     amount1: Mapped[float | None] = mapped_column(Float, nullable=True)
     reserve0: Mapped[float | None] = mapped_column(Float, nullable=True)
     reserve1: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sqrt_price_x96: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tick: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active_liquidity: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tick_lower: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tick_upper: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class PoolCursorRow(Base):
@@ -143,6 +148,11 @@ class PoolEventRepository:
                     amount1=event.amount1,
                     reserve0=event.reserve0,
                     reserve1=event.reserve1,
+                    sqrt_price_x96=(str(event.sqrt_price_x96) if event.sqrt_price_x96 is not None else None),
+                    tick=event.tick,
+                    active_liquidity=(str(event.active_liquidity) if event.active_liquidity is not None else None),
+                    tick_lower=event.tick_lower,
+                    tick_upper=event.tick_upper,
                 )
             )
             inserted += 1
