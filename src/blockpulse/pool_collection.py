@@ -4,7 +4,7 @@ from datetime import datetime
 
 from blockpulse.domain import PoolDefinition, PoolEvent
 from blockpulse.pool_events import PoolLogCollector
-from blockpulse.rpc import RawLog
+from blockpulse.v3_events import V3PoolLogCollector
 from blockpulse.storage import PoolCursorRepository, PoolEventRepository
 
 
@@ -37,10 +37,14 @@ class PoolCollectionService:
         if confirmed_to < from_block:
             return [], 0
 
-        events = await PoolLogCollector(self.provider).collect_v2(
-            pool, from_block, confirmed_to, observed_at
-        )
+        if pool.version.lower() == "v3":
+            events = await V3PoolLogCollector(self.provider).collect(
+                pool, from_block, confirmed_to, observed_at
+            )
+        else:
+            events = await PoolLogCollector(self.provider).collect_v2(
+                pool, from_block, confirmed_to, observed_at
+            )
         inserted = await self.events.add_many(events)
         await self.cursors.advance(pool.pool_id, confirmed_to)
         return events, inserted
-
