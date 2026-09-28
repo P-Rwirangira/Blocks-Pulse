@@ -6,7 +6,7 @@ The current repository begins with the expanded product prototype and the engine
 
 ## Phase 1 status
 
-Phase 1 monitors Base RPC health. Phase 2 generalizes the same vertical slice across Ethereum, Base, and Arbitrum using a configuration-driven registry. Phase 3 adds configured Uniswap V2-style pool monitoring with confirmed log ranges, normalized events, restartable cursors, pool metrics, and pool API routes. It includes typed configuration, an async JSON-RPC adapter, retries and failover, idempotent PostgreSQL-compatible persistence, deterministic health metrics, anomaly and incident detection, per-chain and cross-chain FastAPI health endpoints, and one-shot collection services.
+Phase 1 monitors Base RPC health. Phase 2 generalizes the same vertical slice across Ethereum, Base, and Arbitrum using a configuration-driven registry. Phase 3 adds configured Uniswap V2 and V3 pool monitoring with confirmed log ranges, normalized events, restartable cursors, pool metrics, and pool API routes. V3 uses official pool events plus `slot0()`/`liquidity()` state reads; it does not pretend concentrated liquidity is equivalent to V2 reserves.
 
 ```powershell
 python -m pip install -e ".[dev]"
@@ -18,7 +18,7 @@ uvicorn blockpulse.api:app --reload
 
 The collector requires a real Base RPC URL in `.env`. Tests use deterministic fakes and SQLite, so they do not require live blockchain access.
 
-The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others. Pool addresses and token metadata are supplied through `BLOCKPULSE_POOLS_JSON`; Uniswap V3 support will use a separate adapter because its state model differs from V2.
+The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others. Pool addresses and token metadata are supplied through `BLOCKPULSE_POOLS_JSON`. V3 pool entries should include `version: "v3"`, `fee_tier`, and `tick_spacing`.
 
 ## MVP direction
 
