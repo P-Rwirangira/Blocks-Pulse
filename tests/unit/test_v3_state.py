@@ -1,11 +1,16 @@
 import asyncio
+import asyncio
 from datetime import UTC, datetime
 
 from blockpulse.domain import PoolDefinition
 from blockpulse.v3_state import (
     LIQUIDITY_SELECTOR,
+    OBSERVE_SELECTOR,
+    decode_observe,
+    encode_observe,
     SLOT0_SELECTOR,
     price_token1_per_token0,
+    read_v3_twap,
     read_v3_state,
 )
 
@@ -46,3 +51,28 @@ def test_read_v3_state_decodes_slot0_and_liquidity() -> None:
 def test_v3_price_conversion_applies_decimals() -> None:
     assert price_token1_per_token0(2**96, 18, 6) == 10**12
 
+
+def test_observe_encoding_and_decoding() -> None:
+    encoded = encode_observe([3600, 0])
+    assert encoded.startswith(OBSERVE_SELECTOR)
+    assert len(encoded) == 10 + (4 * 64)
+
+    result = "0x" + "".join(
+        f"{value:064x}" for value in [64, 160, 2, 1000, 4600, 2, 10, 20]
+    )
+    ticks, liquidity = decode_observe(result)
+    assert ticks == [1000, 4600]
+    assert liquidity == [10, 20]
+
+
+def test_read_v3_twap_returns_average_tick() -> None:
+    class Provider:
+        async def eth_call(self, to: str, data: str, block_tag: str = "latest") -> str:
+            assert to == "0xpool"
+            return "0x" + "".join(
+                f"{value:064x}" for value in [64, 160, 2, 1000, 4600, 2, 10, 20]
+            )
+
+    tick, liquidity_delta = asyncio.run(read_v3_twap(Provider(), POOL, 3600))
+    assert tick == 1
+    assert liquidity_delta == 10

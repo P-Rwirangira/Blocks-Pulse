@@ -13,6 +13,7 @@ def selector(signature: str) -> str:
 
 SLOT0_SELECTOR = selector("slot0()")
 LIQUIDITY_SELECTOR = selector("liquidity()")
+OBSERVE_SELECTOR = selector("observe(uint32[])")
 
 
 def words(data: str) -> list[int]:
@@ -32,6 +33,46 @@ def decode_slot0(data: str) -> tuple[int, int]:
     if len(values) < 2:
         raise ValueError("slot0 response is incomplete")
     return values[0], signed(values[1], 24)
+
+
+def encode_observe(seconds_agos: list[int]) -> str:
+    """Encode observe(uint32[]) for a read-only eth_call."""
+
+    if not seconds_agos or any(value < 0 or value > 2**32 - 1 for value in seconds_agos):
+        raise ValueError("seconds_agos must contain valid uint32 values")
+    words_payload = [32, len(seconds_agos), *seconds_agos]
+    return OBSERVE_SELECTOR + "".join(f"{value:064x}" for value in words_payload)
+
+
+def decode_observe(data: str) -> tuple[list[int], list[int]]:
+    """Decode the two dynamic arrays returned by observe(uint32[])."""
+
+    values = words(data)
+    if len(values) < 4:
+        raise ValueError("observe response is incomplete")
+    first_offset, second_offset = values[0], values[1]
+    if first_offset // 32 >= len(values) or second_offset // 32 >= len(values):
+        raise ValueError("observe response offsets are invalid")
+    first_start = first_offset // 32
+    second_start = second_offset // 32
+    first_count = values[first_start]
+    second_count = values[second_start]
+    first = [signed(item, 56) for item in values[first_start + 1 : first_start + 1 + first_count]]
+    second = values[second_start + 1 : second_start + 1 + second_count]
+    if len(first) != first_count or len(second) != second_count:
+        raise ValueError("observe response arrays are truncated")
+    return first, second
+
+
+async def read_v3_twap(provider: object, pool: PoolDefinition, seconds_ago: int) -> tuple[int, int]:
+    """Return tick and seconds-per-liquidity cumulatives for a lookback."""
+
+    result = await provider.eth_call(pool.address, encode_observe([seconds_ago, 0]))
+    ticks, liquidity = decode_observe(result)
+    if len(ticks) != 2 or len(liquidity) != 2:
+        raise ValueError("observe response must contain two points")
+    elapsed = max(seconds_ago, 1)
+    return int((ticks[1] - ticks[0]) / elapsed), liquidity[1] - liquidity[0]
 
 
 async def read_v3_state(provider: object, pool: PoolDefinition, observed_at: datetime) -> V3StateSnapshot:
@@ -60,4 +101,3 @@ def price_token1_per_token0(
 
     raw_price = (sqrt_price_x96 * sqrt_price_x96) / 2**192
     return raw_price * 10**token0_decimals / 10**token1_decimals
-
