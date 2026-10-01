@@ -4,11 +4,11 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
-from blockpulse.collector import RpcCollector
-from blockpulse.chain_registry import ChainDefinition
-from blockpulse.domain import RpcObservation
-from blockpulse.ports import RpcProvider
-from blockpulse.storage import ObservationRepository
+from blockpulse.chain_health.application.collector import RpcCollector
+from blockpulse.domain.models import RpcObservation
+from blockpulse.infrastructure.config.chains import ChainDefinition
+from blockpulse.infrastructure.database.repositories import ObservationRepository
+from blockpulse.shared.ports import RpcProvider
 
 
 class CollectionService:

@@ -3,10 +3,10 @@
 import asyncio
 from datetime import UTC, datetime
 
-from blockpulse.chain_registry import enabled_chains, providers_for_chain
-from blockpulse.collection_service import MultiChainCollectionService
-from blockpulse.config import get_settings
-from blockpulse.storage import Database, ObservationRepository
+from blockpulse.infrastructure.config.chains import enabled_chains, providers_for_chain
+from blockpulse.infrastructure.config.settings import get_settings
+from blockpulse.infrastructure.database.repositories import Database, ObservationRepository
+from blockpulse.chain_health.application.collection import MultiChainCollectionService
 
 
 async def collect_once() -> int:

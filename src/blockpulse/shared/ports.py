@@ -4,8 +4,8 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol
 
-from blockpulse.domain import RpcObservation
-from blockpulse.rpc import RawLog
+from blockpulse.domain.models import RpcObservation
+from blockpulse.infrastructure.rpc.jsonrpc import RawLog
 
 
 class RpcProvider(Protocol):

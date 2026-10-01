@@ -2,10 +2,10 @@
 
 from datetime import UTC, datetime
 
-from blockpulse.chain_registry import ChainDefinition
-from blockpulse.domain import ChainHealthSummary, HealthMetric, HealthOverview, RpcObservation
-from blockpulse.monitoring import calculate_rpc_health
-from blockpulse.storage import ObservationRepository
+from blockpulse.chain_health.application.metrics import calculate_rpc_health
+from blockpulse.domain.models import ChainHealthSummary, HealthMetric, HealthOverview, RpcObservation
+from blockpulse.infrastructure.config.chains import ChainDefinition
+from blockpulse.infrastructure.database.repositories import ObservationRepository
 
 
 class HealthService:

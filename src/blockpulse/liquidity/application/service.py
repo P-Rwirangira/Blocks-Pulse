@@ -1,9 +1,9 @@
 """Application services for pool metrics and event inspection."""
 
-from blockpulse.domain import PoolDefinition, PoolEvent, PoolMetric
-from blockpulse.pool_monitoring import calculate_pool_metric
-from blockpulse.v3_monitoring import calculate_v3_metric
-from blockpulse.storage import PoolEventRepository
+from blockpulse.domain.models import PoolDefinition, PoolEvent, PoolMetric
+from blockpulse.infrastructure.database.repositories import PoolEventRepository
+from blockpulse.liquidity.application.metrics import calculate_pool_metric
+from blockpulse.liquidity.application.v3_metrics import calculate_v3_metric
 
 
 class PoolService:

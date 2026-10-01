@@ -2,8 +2,8 @@
 
 import json
 
-from blockpulse.config import Settings
-from blockpulse.domain import PoolDefinition
+from blockpulse.domain.models import PoolDefinition
+from blockpulse.infrastructure.config.settings import Settings
 
 
 def configured_pools(settings: Settings) -> tuple[PoolDefinition, ...]:
@@ -23,4 +23,3 @@ def pools_for_chain(
     """Return configured pools for one chain."""
 
     return tuple(pool for pool in configured_pools(settings) if pool.chain_id == chain_id)
-

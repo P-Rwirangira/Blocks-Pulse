@@ -4,8 +4,8 @@ from datetime import datetime
 
 from eth_utils import keccak
 
-from blockpulse.domain import PoolDefinition, PoolEvent
-from blockpulse.rpc import RawLog
+from blockpulse.domain.models import PoolDefinition, PoolEvent
+from blockpulse.infrastructure.rpc.jsonrpc import RawLog
 
 
 def event_topic(signature: str) -> str:
@@ -82,4 +82,3 @@ class PoolLogCollector:
             pool.address, from_block, to_block, [V2_SWAP_TOPIC, V2_SYNC_TOPIC]
         )
         return [decode_v2_log(log, pool, occurred_at) for log in raw_logs]
-

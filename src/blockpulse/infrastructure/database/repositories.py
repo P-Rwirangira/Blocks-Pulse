@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain import PoolEvent, RpcObservation
+from blockpulse.domain.models import PoolEvent, RpcObservation
 
 
 class Base(DeclarativeBase):

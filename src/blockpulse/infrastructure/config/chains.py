@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from blockpulse.config import Settings
-from blockpulse.rpc import JsonRpcProvider
+from blockpulse.infrastructure.config.settings import Settings
+from blockpulse.infrastructure.rpc.jsonrpc import JsonRpcProvider
 
 
 @dataclass(frozen=True, slots=True)

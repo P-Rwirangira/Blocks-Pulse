@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 
-from blockpulse.domain import PoolDefinition, PoolEvent, PoolMetric
-from blockpulse.v3_state import price_token1_per_token0
+from blockpulse.domain.models import PoolDefinition, PoolEvent, PoolMetric
+from blockpulse.liquidity.adapters.uniswap.v3.state import price_token1_per_token0
 
 
 def calculate_v3_metric(
@@ -43,4 +43,3 @@ def calculate_v3_metric(
         latest_sqrt_price_x96=state.sqrt_price_x96 if state else None,
         active_liquidity=liquidity,
     )
-

@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field
 
-from blockpulse.domain import RpcObservation
+from blockpulse.domain.models import RpcObservation
 
 
 class RpcProviderError(RuntimeError):

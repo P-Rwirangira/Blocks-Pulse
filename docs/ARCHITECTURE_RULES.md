@@ -11,6 +11,42 @@ RPC and logs -> ingestion -> validation -> normalized facts -> features
 
 Dependencies flow toward stable domain data. The AI layer may consume approved analytical tools, but it must not become the source of truth.
 
+## Current package layout
+
+The Python package is organized by capability and architectural role rather than by
+one large collection of modules:
+
+```text
+src/blockpulse/
+  domain/                  # stable entities and value objects
+  shared/                  # narrow cross-cutting ports
+  chain_health/            # RPC health use cases and detectors
+    application/
+  liquidity/               # pool monitoring use cases and DEX adapters
+    application/
+    adapters/uniswap/v2/
+    adapters/uniswap/v3/
+  incidents/               # incident lifecycle and evidence policy
+    application/
+  infrastructure/          # settings, RPC transport, persistence
+    config/
+    rpc/
+    database/
+  interfaces/               # HTTP and CLI composition boundaries
+    http/
+    cli/
+```
+
+New behavior belongs in the capability package that owns it. Domain modules must
+not import infrastructure or interface modules. Application services depend on
+ports and domain models; infrastructure implements those ports; interfaces wire
+the application together. The short root-level modules are compatibility facades
+for existing entry points and must not be used by new internal code.
+
+Each capability should expose small application services, keep provider-specific
+logic behind adapters, and make persistence replaceable through repository ports.
+Prefer composition at the HTTP/CLI boundary over global service state.
+
 ## Required boundaries
 
 ### Ingestion

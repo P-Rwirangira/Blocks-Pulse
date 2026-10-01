@@ -3,7 +3,7 @@
 import math
 from collections.abc import Sequence
 
-from blockpulse.domain import PoolEvent, PoolMetric
+from blockpulse.domain.models import PoolEvent, PoolMetric
 
 
 def _liquidity_proxy(reserve0: float | None, reserve1: float | None) -> float | None:
@@ -54,4 +54,3 @@ def calculate_pool_metric(
         liquidity_change_pct=change,
         price_token1_per_token0=price,
     )
-

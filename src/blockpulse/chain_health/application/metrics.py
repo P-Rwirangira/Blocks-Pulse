@@ -3,7 +3,7 @@
 import math
 from collections.abc import Sequence
 
-from blockpulse.domain import HealthMetric, HealthStatus, RpcObservation
+from blockpulse.domain.models import HealthMetric, HealthStatus, RpcObservation
 
 
 def percentile(values: Sequence[float], percentile_rank: float) -> float:
@@ -60,4 +60,3 @@ def health_status(error_rate: float, p95_latency_ms: float, block_disagreement: 
     if error_rate >= 0.10 or p95_latency_ms >= 1_000 or block_disagreement >= 2:
         return HealthStatus.WARNING
     return HealthStatus.HEALTHY
-

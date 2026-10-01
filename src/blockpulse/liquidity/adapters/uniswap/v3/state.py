@@ -4,7 +4,7 @@ from datetime import datetime
 
 from eth_utils import keccak
 
-from blockpulse.domain import PoolDefinition, V3StateSnapshot
+from blockpulse.domain.models import PoolDefinition, V3StateSnapshot
 
 
 def selector(signature: str) -> str:

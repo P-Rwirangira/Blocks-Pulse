@@ -1,6 +1,6 @@
 """Explainable deterministic anomaly detector for RPC health."""
 
-from blockpulse.domain import AnomalyEvent, HealthMetric, HealthStatus
+from blockpulse.domain.models import AnomalyEvent, HealthMetric, HealthStatus
 
 
 def detect_rpc_anomaly(
@@ -42,4 +42,3 @@ def detect_rpc_anomaly(
         drivers=drivers,
         metric=metric,
     )
-

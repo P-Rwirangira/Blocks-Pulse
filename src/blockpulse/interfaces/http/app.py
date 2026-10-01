@@ -2,15 +2,13 @@
 
 from fastapi import FastAPI, HTTPException
 
-from blockpulse.chain_registry import configured_chains
-from blockpulse.config import get_settings
-from blockpulse.domain import HealthMetric, HealthOverview
-from blockpulse.domain import PoolDefinition, PoolEvent, PoolMetric
-from blockpulse.health_service import HealthService
-from blockpulse.storage import Database, ObservationRepository
-from blockpulse.pool_registry import configured_pools
-from blockpulse.pool_service import PoolService
-from blockpulse.storage import PoolEventRepository
+from blockpulse.chain_health.application.service import HealthService
+from blockpulse.domain.models import HealthMetric, HealthOverview, PoolDefinition, PoolEvent, PoolMetric
+from blockpulse.infrastructure.config.chains import configured_chains
+from blockpulse.infrastructure.config.pools import configured_pools
+from blockpulse.infrastructure.config.settings import get_settings
+from blockpulse.infrastructure.database.repositories import Database, ObservationRepository, PoolEventRepository
+from blockpulse.liquidity.application.service import PoolService
 
 
 def create_app(database: Database | None = None) -> FastAPI:

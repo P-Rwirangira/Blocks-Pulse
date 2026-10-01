@@ -2,7 +2,7 @@
 
 from hashlib import sha256
 
-from blockpulse.domain import AnomalyEvent, Incident, IncidentStatus
+from blockpulse.domain.models import AnomalyEvent, Incident, IncidentStatus
 
 
 class IncidentService:
@@ -23,4 +23,3 @@ class IncidentService:
             anomaly_event_id=anomaly.event_id,
             evidence_ids=evidence_ids,
         )
-

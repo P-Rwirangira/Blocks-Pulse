@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
-from blockpulse.domain import RpcObservation
-from blockpulse.ports import RpcProvider
+from blockpulse.domain.models import RpcObservation
+from blockpulse.shared.ports import RpcProvider
 
 
 class RpcCollector:
@@ -48,4 +48,3 @@ class RpcCollector:
             if observation.success:
                 break
         return attempts
-

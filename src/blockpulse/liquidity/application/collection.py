@@ -2,10 +2,10 @@
 
 from datetime import datetime
 
-from blockpulse.domain import PoolDefinition, PoolEvent
-from blockpulse.pool_events import PoolLogCollector
-from blockpulse.v3_events import V3PoolLogCollector
-from blockpulse.storage import PoolCursorRepository, PoolEventRepository
+from blockpulse.domain.models import PoolDefinition, PoolEvent
+from blockpulse.infrastructure.database.repositories import PoolCursorRepository, PoolEventRepository
+from blockpulse.liquidity.adapters.uniswap.v2.decoder import PoolLogCollector
+from blockpulse.liquidity.adapters.uniswap.v3.decoder import V3PoolLogCollector
 
 
 class PoolCollectionService:
