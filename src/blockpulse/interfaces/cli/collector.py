@@ -24,7 +24,10 @@ async def collect_once() -> int:
     try:
         async with database.sessions() as session:
             observations_by_chain, inserted = await MultiChainCollectionService(
-                providers_by_chain, ObservationRepository(session)
+                providers_by_chain,
+                ObservationRepository(session),
+                retries=settings.rpc_retries,
+                retry_backoff_seconds=settings.rpc_retry_backoff_seconds,
             ).collect_once(datetime.now(UTC))
         observations = [item for values in observations_by_chain.values() for item in values]
         successful = sum(item.success for item in observations)

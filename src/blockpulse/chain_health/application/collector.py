@@ -11,13 +11,21 @@ from blockpulse.shared.ports import RpcProvider
 class RpcCollector:
     """Collect latest-block observations from configured providers."""
 
-    def __init__(self, providers: Sequence[RpcProvider], retries: int = 1) -> None:
+    def __init__(
+        self,
+        providers: Sequence[RpcProvider],
+        retries: int = 1,
+        retry_backoff_seconds: float = 0.5,
+    ) -> None:
         if not providers:
             raise ValueError("at least one RPC provider is required")
         if retries < 0:
             raise ValueError("retries cannot be negative")
+        if retry_backoff_seconds < 0:
+            raise ValueError("retry backoff cannot be negative")
         self.providers = list(providers)
         self.retries = retries
+        self.retry_backoff_seconds = retry_backoff_seconds
 
     async def collect_all(self, observed_at: datetime) -> list[RpcObservation]:
         """Observe every endpoint so endpoint health can be compared."""
@@ -42,9 +50,11 @@ class RpcCollector:
         self, provider: RpcProvider, observed_at: datetime
     ) -> list[RpcObservation]:
         attempts: list[RpcObservation] = []
-        for _ in range(self.retries + 1):
+        for attempt in range(self.retries + 1):
             observation = await provider.observe_latest_block(observed_at)
             attempts.append(observation)
             if observation.success:
                 break
+            if attempt < self.retries and self.retry_backoff_seconds:
+                await asyncio.sleep(self.retry_backoff_seconds * (2**attempt))
         return attempts

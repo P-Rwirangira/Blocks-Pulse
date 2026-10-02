@@ -1,6 +1,8 @@
 import asyncio
 from datetime import UTC, datetime
 
+import pytest
+
 from blockpulse.collector import RpcCollector
 from blockpulse.domain import RpcObservation
 
@@ -48,3 +50,27 @@ def test_collector_fails_over_to_second_provider() -> None:
         assert observations[-1].success is True
 
     asyncio.run(scenario())
+
+
+def test_collector_uses_exponential_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def scenario() -> None:
+        delays: list[float] = []
+
+        async def fake_sleep(delay: float) -> None:
+            delays.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+        provider = FakeProvider("base-a", [False, False, True])
+        observations = await RpcCollector(
+            [provider], retries=2, retry_backoff_seconds=0.25
+        ).collect_all(datetime.now(UTC))
+
+        assert [item.success for item in observations] == [False, False, True]
+        assert delays == [0.25, 0.5]
+
+    asyncio.run(scenario())
+
+
+def test_collector_rejects_negative_backoff() -> None:
+    with pytest.raises(ValueError, match="backoff"):
+        RpcCollector([FakeProvider("base-a", [True])], retry_backoff_seconds=-1)

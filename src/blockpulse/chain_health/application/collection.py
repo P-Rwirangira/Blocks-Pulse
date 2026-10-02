@@ -14,8 +14,14 @@ from blockpulse.shared.ports import RpcProvider
 class CollectionService:
     """Coordinate collection and durable persistence."""
 
-    def __init__(self, providers: Sequence[RpcProvider], repository: ObservationRepository) -> None:
-        self.collector = RpcCollector(providers)
+    def __init__(
+        self,
+        providers: Sequence[RpcProvider],
+        repository: ObservationRepository,
+        retries: int = 1,
+        retry_backoff_seconds: float = 0.5,
+    ) -> None:
+        self.collector = RpcCollector(providers, retries, retry_backoff_seconds)
         self.repository = repository
 
     async def collect_once(self, observed_at: datetime) -> tuple[list[RpcObservation], int]:
@@ -33,9 +39,12 @@ class MultiChainCollectionService:
         self,
         providers_by_chain: dict[ChainDefinition, Sequence[RpcProvider]],
         repository: ObservationRepository,
+        retries: int = 1,
+        retry_backoff_seconds: float = 0.5,
     ) -> None:
         self.collectors = {
-            chain: RpcCollector(providers) for chain, providers in providers_by_chain.items()
+            chain: RpcCollector(providers, retries, retry_backoff_seconds)
+            for chain, providers in providers_by_chain.items()
         }
         self.repository = repository
 
