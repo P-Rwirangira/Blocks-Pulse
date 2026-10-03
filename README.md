@@ -12,11 +12,16 @@ Phase 1 monitors Base RPC health. Phase 2 generalizes the same vertical slice ac
 python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 docker compose up -d postgres
+blockpulse-migrate
 blockpulse-collect
 uvicorn blockpulse.api:app --reload
 ```
 
 The collector requires a real Base RPC URL in `.env`. Tests use deterministic fakes and SQLite, so they do not require live blockchain access.
+
+Production or shared environments should run `blockpulse-migrate` before starting
+the collector or API. Schema changes belong in `migrations/versions/` and must be
+reversible; test databases may continue to use automatic schema creation.
 
 The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others. Pool addresses and token metadata are supplied through `BLOCKPULSE_POOLS_JSON`. V3 pool entries should include `version: "v3"`, `fee_tier`, and `tick_spacing`.
 

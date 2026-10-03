@@ -17,6 +17,7 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "aiosqlite>=0.20,<1",
     "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,7 @@ dev = [
 
 [project.scripts]
 blockpulse-collect = "blockpulse.cli:main"
+blockpulse-migrate = "blockpulse.infrastructure.database.migrate:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/blockpulse"]
