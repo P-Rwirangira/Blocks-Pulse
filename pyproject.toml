@@ -29,6 +29,7 @@ dev = [
 
 [project.scripts]
 blockpulse-collect = "blockpulse.cli:main"
+blockpulse-collect-loop = "blockpulse.cli:worker_main"
 blockpulse-migrate = "blockpulse.infrastructure.database.migrate:main"
 
 [tool.hatch.build.targets.wheel]

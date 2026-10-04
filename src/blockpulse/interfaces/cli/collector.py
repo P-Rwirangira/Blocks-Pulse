@@ -7,6 +7,7 @@ from blockpulse.infrastructure.config.chains import enabled_chains, providers_fo
 from blockpulse.infrastructure.config.settings import get_settings
 from blockpulse.infrastructure.database.repositories import Database, ObservationRepository
 from blockpulse.chain_health.application.collection import MultiChainCollectionService
+from blockpulse.chain_health.application.worker import CollectionWorker
 
 
 async def collect_once() -> int:
@@ -44,3 +45,16 @@ def main() -> None:
     """Run the one-shot collector."""
 
     raise SystemExit(asyncio.run(collect_once()))
+
+
+async def collect_forever() -> None:
+    """Run collection cycles until the process is cancelled."""
+
+    settings = get_settings()
+    await CollectionWorker(collect_once, settings.collection_interval_seconds).run()
+
+
+def worker_main() -> None:
+    """Run the continuous collector command."""
+
+    raise SystemExit(asyncio.run(collect_forever()))
