@@ -52,6 +52,7 @@ class RpcCollector:
         attempts: list[RpcObservation] = []
         for attempt in range(self.retries + 1):
             observation = await provider.observe_latest_block(observed_at)
+            observation = observation.model_copy(update={"attempt": attempt})
             attempts.append(observation)
             if observation.success:
                 break

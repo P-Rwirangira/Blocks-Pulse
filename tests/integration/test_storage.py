@@ -18,14 +18,15 @@ def test_observations_are_idempotent() -> None:
             success=True,
             latest_block_number=123,
         )
+        retry = observation.model_copy(update={"attempt": 1, "success": False})
         async with database.sessions() as session:
             repository = ObservationRepository(session)
             assert await repository.add_many([observation]) == 1
+            assert await repository.add_many([retry]) == 1
             assert await repository.add_many([observation]) == 0
             rows = await repository.recent(8453)
-            assert len(rows) == 1
+            assert len(rows) == 2
             assert rows[0].latest_block_number == 123
         await database.close()
 
     asyncio.run(scenario())
-

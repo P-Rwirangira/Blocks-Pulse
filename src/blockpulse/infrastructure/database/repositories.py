@@ -24,6 +24,7 @@ class RpcObservationRow(Base):
     endpoint_name: Mapped[str] = mapped_column(String(100), index=True)
     chain_id: Mapped[int] = mapped_column(Integer, index=True)
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    attempt: Mapped[int] = mapped_column(Integer, default=0)
     latency_ms: Mapped[float] = mapped_column(Float)
     success: Mapped[bool]
     latest_block_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -72,6 +73,7 @@ def observation_id(observation: RpcObservation) -> str:
             observation.endpoint_name,
             str(observation.chain_id),
             observation.observed_at.isoformat(),
+            str(observation.attempt),
         ]
     )
     return sha256(value.encode("utf-8")).hexdigest()
@@ -98,6 +100,7 @@ class ObservationRepository:
                     endpoint_name=observation.endpoint_name,
                     chain_id=observation.chain_id,
                     observed_at=observation.observed_at,
+                    attempt=observation.attempt,
                     latency_ms=observation.latency_ms,
                     success=observation.success,
                     latest_block_number=observation.latest_block_number,

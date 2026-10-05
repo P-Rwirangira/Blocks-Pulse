@@ -66,6 +66,7 @@ def test_collector_uses_exponential_backoff(monkeypatch: pytest.MonkeyPatch) -> 
         ).collect_all(datetime.now(UTC))
 
         assert [item.success for item in observations] == [False, False, True]
+        assert [item.attempt for item in observations] == [0, 1, 2]
         assert delays == [0.25, 0.5]
 
     asyncio.run(scenario())

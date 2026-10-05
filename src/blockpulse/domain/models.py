@@ -28,6 +28,7 @@ class RpcObservation(BaseModel):
     endpoint_name: str
     chain_id: int = Field(gt=0)
     observed_at: datetime
+    attempt: int = Field(default=0, ge=0)
     latency_ms: float = Field(ge=0)
     success: bool
     latest_block_number: int | None = Field(default=None, ge=0)
