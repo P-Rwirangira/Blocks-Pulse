@@ -22,6 +22,7 @@ def test_rpc_observation_records_success(monkeypatch: pytest.MonkeyPatch) -> Non
     assert observation.success is True
     assert observation.latest_block_number == 16
     assert observation.error_type is None
+    assert observation.raw_payload == {"jsonrpc": "2.0", "id": 1, "result": "0x10"}
 
 
 def test_rpc_observation_records_http_failure(monkeypatch: pytest.MonkeyPatch) -> None:

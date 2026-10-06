@@ -1,6 +1,7 @@
 """Stable domain objects used across adapters and application services."""
 
 from datetime import datetime
+from typing import Any
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,6 +34,7 @@ class RpcObservation(BaseModel):
     success: bool
     latest_block_number: int | None = Field(default=None, ge=0)
     error_type: str | None = None
+    raw_payload: dict[str, Any] | None = None
 
 
 class HealthMetric(BaseModel):

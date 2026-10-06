@@ -39,6 +39,7 @@ class JsonRpcProvider:
         """Call eth_blockNumber and return a measured observation."""
 
         started = time.perf_counter()
+        payload: dict[str, Any] | None = None
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 response = await client.post(
@@ -46,7 +47,10 @@ class JsonRpcProvider:
                     json={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []},
                 )
                 response.raise_for_status()
-                payload = response.json()
+                candidate = response.json()
+                if not isinstance(candidate, dict):
+                    raise ValueError("RPC response is not a JSON object")
+                payload = candidate
                 block_number = self._parse_block_number(payload)
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
             latency_ms = (time.perf_counter() - started) * 1000
@@ -57,6 +61,7 @@ class JsonRpcProvider:
                 latency_ms=latency_ms,
                 success=False,
                 error_type=type(exc).__name__,
+                raw_payload=payload,
             )
 
         return RpcObservation(
@@ -66,6 +71,7 @@ class JsonRpcProvider:
             latency_ms=(time.perf_counter() - started) * 1000,
             success=True,
             latest_block_number=block_number,
+            raw_payload=payload,
         )
 
     @staticmethod

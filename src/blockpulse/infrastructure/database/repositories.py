@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from hashlib import sha256
 
-from sqlalchemy import DateTime, Float, Integer, String, select
+from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -29,6 +29,7 @@ class RpcObservationRow(Base):
     success: Mapped[bool]
     latest_block_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    raw_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
 class PoolEventRow(Base):
@@ -105,6 +106,7 @@ class ObservationRepository:
                     success=observation.success,
                     latest_block_number=observation.latest_block_number,
                     error_type=observation.error_type,
+                    raw_payload=observation.raw_payload,
                 )
             )
             inserted += 1
