@@ -33,6 +33,8 @@ class RpcObservation(BaseModel):
     latency_ms: float = Field(ge=0)
     success: bool
     latest_block_number: int | None = Field(default=None, ge=0)
+    latest_block_hash: str | None = None
+    latest_parent_hash: str | None = None
     error_type: str | None = None
     raw_payload: dict[str, Any] | None = None
 

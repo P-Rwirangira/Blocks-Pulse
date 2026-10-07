@@ -36,7 +36,7 @@ class JsonRpcProvider:
         self.timeout_seconds = timeout_seconds
 
     async def observe_latest_block(self, observed_at: datetime) -> RpcObservation:
-        """Call eth_blockNumber and return a measured observation."""
+        """Read the latest block number and hashes for continuity checks."""
 
         started = time.perf_counter()
         payload: dict[str, Any] | None = None
@@ -44,14 +44,19 @@ class JsonRpcProvider:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 response = await client.post(
                     self.url,
-                    json={"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []},
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "eth_getBlockByNumber",
+                        "params": ["latest", False],
+                    },
                 )
                 response.raise_for_status()
                 candidate = response.json()
                 if not isinstance(candidate, dict):
                     raise ValueError("RPC response is not a JSON object")
                 payload = candidate
-                block_number = self._parse_block_number(payload)
+                block_number, block_hash, parent_hash = self._parse_block_reference(payload)
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
             latency_ms = (time.perf_counter() - started) * 1000
             return RpcObservation(
@@ -71,8 +76,32 @@ class JsonRpcProvider:
             latency_ms=(time.perf_counter() - started) * 1000,
             success=True,
             latest_block_number=block_number,
+            latest_block_hash=block_hash,
+            latest_parent_hash=parent_hash,
             raw_payload=payload,
         )
+
+    @staticmethod
+    def _parse_block_reference(payload: dict[str, Any]) -> tuple[int, str | None, str | None]:
+        """Parse a block object or a legacy hexadecimal block response."""
+
+        if "error" in payload:
+            raise RpcProviderError(str(payload["error"]))
+        result = payload["result"]
+        if isinstance(result, str):
+            return int(result, 16), None, None
+        if not isinstance(result, dict):
+            raise ValueError("RPC block result is not an object")
+        number = result["number"]
+        block_hash = result.get("hash")
+        parent_hash = result.get("parentHash")
+        if not isinstance(number, str) or not number.startswith("0x"):
+            raise ValueError("RPC block number is not hexadecimal")
+        if block_hash is not None and not isinstance(block_hash, str):
+            raise ValueError("RPC block hash is not a string")
+        if parent_hash is not None and not isinstance(parent_hash, str):
+            raise ValueError("RPC parent hash is not a string")
+        return int(number, 16), block_hash, parent_hash
 
     @staticmethod
     def _parse_block_number(payload: dict[str, Any]) -> int:

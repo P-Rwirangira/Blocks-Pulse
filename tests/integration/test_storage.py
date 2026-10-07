@@ -18,6 +18,8 @@ def test_observations_are_idempotent() -> None:
             success=True,
             latest_block_number=123,
             raw_payload={"result": "0x7b"},
+            latest_block_hash="0xabc",
+            latest_parent_hash="0xdef",
         )
         retry = observation.model_copy(update={"attempt": 1, "success": False})
         async with database.sessions() as session:
@@ -29,6 +31,7 @@ def test_observations_are_idempotent() -> None:
             assert len(rows) == 2
             assert rows[0].latest_block_number == 123
             assert rows[0].raw_payload == {"result": "0x7b"}
+            assert rows[0].latest_block_hash == "0xabc"
         await database.close()
 
     asyncio.run(scenario())

@@ -26,6 +26,8 @@ class HealthService:
                 latency_ms=row.latency_ms,
                 success=row.success,
                 latest_block_number=row.latest_block_number,
+                latest_block_hash=row.latest_block_hash,
+                latest_parent_hash=row.latest_parent_hash,
                 error_type=row.error_type,
             )
             for row in rows

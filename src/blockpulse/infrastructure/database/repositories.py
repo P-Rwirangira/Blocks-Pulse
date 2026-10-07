@@ -28,6 +28,8 @@ class RpcObservationRow(Base):
     latency_ms: Mapped[float] = mapped_column(Float)
     success: Mapped[bool]
     latest_block_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latest_block_hash: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    latest_parent_hash: Mapped[str | None] = mapped_column(String(100), nullable=True)
     error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     raw_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
@@ -105,6 +107,8 @@ class ObservationRepository:
                     latency_ms=observation.latency_ms,
                     success=observation.success,
                     latest_block_number=observation.latest_block_number,
+                    latest_block_hash=observation.latest_block_hash,
+                    latest_parent_hash=observation.latest_parent_hash,
                     error_type=observation.error_type,
                     raw_payload=observation.raw_payload,
                 )
