@@ -39,6 +39,19 @@ class RpcObservation(BaseModel):
     raw_payload: dict[str, Any] | None = None
 
 
+class ReorgSignal(BaseModel):
+    """Evidence that one endpoint observed a conflicting chain head."""
+
+    endpoint_name: str
+    chain_id: int = Field(gt=0)
+    detected_at: datetime
+    block_number: int = Field(ge=0)
+    previous_block_number: int = Field(ge=0)
+    previous_block_hash: str | None = None
+    observed_block_hash: str | None = None
+    reason: str
+
+
 class HealthMetric(BaseModel):
     """Aggregated health state for a chain and observation window."""
 

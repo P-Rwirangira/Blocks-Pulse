@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
-from blockpulse.domain import HealthStatus, RpcObservation
+from blockpulse.domain import HealthStatus, ReorgSignal, RpcObservation
+from blockpulse.chain_health.application.reorganizations import detect_reorganizations
 from blockpulse.monitoring import calculate_rpc_health, percentile
 
 
@@ -16,6 +17,24 @@ def observation(
         latest_block_number=block,
         error_type=None if success else "timeout",
     )
+
+
+def test_detects_conflicting_block_hash() -> None:
+    first = observation("base-a", 100, 100)
+    second = first.model_copy(
+        update={
+            "observed_at": first.observed_at.replace(minute=1),
+            "latest_block_hash": "0xnew",
+            "latest_parent_hash": "0xparent",
+        }
+    )
+    first = first.model_copy(update={"latest_block_hash": "0xold"})
+
+    signals = detect_reorganizations([first, second])
+
+    assert len(signals) == 1
+    assert isinstance(signals[0], ReorgSignal)
+    assert signals[0].reason == "conflicting_block_hash"
 
 
 def test_percentile_uses_nearest_rank() -> None:
