@@ -75,3 +75,21 @@ def test_collector_uses_exponential_backoff(monkeypatch: pytest.MonkeyPatch) -> 
 def test_collector_rejects_negative_backoff() -> None:
     with pytest.raises(ValueError, match="backoff"):
         RpcCollector([FakeProvider("base-a", [True])], retry_backoff_seconds=-1)
+
+
+def test_collector_opens_circuit_after_repeated_failures() -> None:
+    async def scenario() -> None:
+        provider = FakeProvider("base-a", [False, False, False, True])
+        collector = RpcCollector([provider], retries=0, failure_threshold=2)
+        observed_at = datetime.now(UTC)
+
+        first = await collector.collect_all(observed_at)
+        second = await collector.collect_all(observed_at)
+        third = await collector.collect_all(observed_at)
+
+        assert first[0].error_type == "timeout"
+        assert second[0].error_type == "timeout"
+        assert third[0].error_type == "circuit_open"
+        assert provider.calls == 2
+
+    asyncio.run(scenario())
