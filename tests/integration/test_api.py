@@ -45,6 +45,18 @@ def test_health_endpoint_returns_metric() -> None:
     asyncio.run(database.close())
 
 
+def test_readiness_endpoint_checks_database() -> None:
+    database = Database("sqlite+aiosqlite:///:memory:")
+    asyncio.run(database.create_schema())
+    client = TestClient(create_app(database))
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+    asyncio.run(database.close())
+
+
 def test_overview_returns_observed_chains() -> None:
     async def seed(database: Database) -> None:
         await database.create_schema()

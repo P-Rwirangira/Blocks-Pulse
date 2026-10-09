@@ -1,6 +1,7 @@
 """FastAPI surface for Phase 1 health data."""
 
 from fastapi import FastAPI, HTTPException
+from sqlalchemy import text
 
 from blockpulse.chain_health.application.service import HealthService
 from blockpulse.domain.models import HealthMetric, HealthOverview, PoolDefinition, PoolEvent, PoolMetric
@@ -21,6 +22,17 @@ def create_app(database: Database | None = None) -> FastAPI:
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/readyz")
+    async def readyz() -> dict[str, str]:
+        """Confirm that the API can reach its configured database."""
+
+        try:
+            async with app.state.database.sessions() as session:
+                await session.execute(text("SELECT 1"))
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="database is not ready") from exc
+        return {"status": "ready"}
 
     @app.get("/api/v1/chains")
     async def chains() -> list[dict[str, object]]:
