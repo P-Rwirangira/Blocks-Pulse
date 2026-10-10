@@ -3,7 +3,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from blockpulse.domain import PoolDefinition
+from blockpulse.domain import PoolDefinition, RpcObservation
+from blockpulse.chain_health.application.backfill import HistoricalHealthProjection
 from blockpulse.infrastructure.database.repositories import (
     Database,
     PoolCursorRepository,
@@ -54,3 +55,25 @@ def test_backfill_rejects_target_before_pool_start() -> None:
             await PoolBackfillService(object()).backfill(POOL, 99, datetime.now(UTC))
 
     asyncio.run(scenario())
+
+
+def test_historical_health_projection_groups_utc_windows() -> None:
+    first = RpcObservation(
+        endpoint_name="base-a",
+        chain_id=8453,
+        observed_at=datetime(2026, 10, 10, 9, 1, tzinfo=UTC),
+        latency_ms=100,
+        success=True,
+        latest_block_number=100,
+    )
+    second = first.model_copy(
+        update={
+            "observed_at": datetime(2026, 10, 10, 9, 16, tzinfo=UTC),
+            "latest_block_number": 110,
+        }
+    )
+
+    metrics = HistoricalHealthProjection().build([first, second], window_minutes=15)
+
+    assert len(metrics) == 2
+    assert [metric.latest_block_number for metric in metrics] == [100, 110]
