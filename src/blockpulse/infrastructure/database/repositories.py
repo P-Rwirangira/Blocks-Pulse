@@ -8,7 +8,8 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain.models import PoolEvent, RpcObservation
+from blockpulse.domain.models import HealthMetric, PoolEvent, RpcObservation
+from blockpulse.chain_health.application.quality import ObservationQualityReport
 
 
 class Base(DeclarativeBase):
@@ -68,6 +69,37 @@ class PoolCursorRow(Base):
     last_processed_block: Mapped[int] = mapped_column(Integer)
 
 
+class HealthMetricRow(Base):
+    """Persisted derived chain-health metric."""
+
+    __tablename__ = "health_metrics"
+
+    metric_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    window_minutes: Mapped[int] = mapped_column(Integer)
+    request_count: Mapped[int] = mapped_column(Integer)
+    error_rate: Mapped[float] = mapped_column(Float)
+    p95_latency_ms: Mapped[float] = mapped_column(Float)
+    latest_block_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    block_disagreement: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+
+
+class ObservationQualityRow(Base):
+    """Persisted data-quality result for an observation review."""
+
+    __tablename__ = "observation_quality"
+
+    report_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    observation_count: Mapped[int] = mapped_column(Integer)
+    stale: Mapped[bool]
+    duplicate_count: Mapped[int] = mapped_column(Integer)
+    gap_count: Mapped[int] = mapped_column(Integer)
+    issues: Mapped[list] = mapped_column(JSON)
+
+
 def observation_id(observation: RpcObservation) -> str:
     """Build a deterministic identity for idempotent writes."""
 
@@ -78,6 +110,22 @@ def observation_id(observation: RpcObservation) -> str:
             observation.observed_at.isoformat(),
             str(observation.attempt),
         ]
+    )
+    return sha256(value.encode("utf-8")).hexdigest()
+
+
+def metric_id(metric: HealthMetric) -> str:
+    """Build a stable identity for a derived metric snapshot."""
+
+    value = f"{metric.chain_id}|{metric.measured_at.isoformat()}|{metric.window_minutes}"
+    return sha256(value.encode("utf-8")).hexdigest()
+
+
+def quality_report_id(report: ObservationQualityReport) -> str:
+    """Build a stable identity for a quality review."""
+
+    value = "|".join(
+        [report.checked_at.isoformat(), str(report.observation_count), *report.issues]
     )
     return sha256(value.encode("utf-8")).hexdigest()
 
@@ -127,6 +175,71 @@ class ObservationRepository:
             .limit(limit)
         )
         return list(result)
+
+
+class HealthMetricRepository:
+    """Repository for idempotent derived health snapshots."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add_many(self, metrics: Sequence[HealthMetric]) -> int:
+        inserted = 0
+        for metric in metrics:
+            key = metric_id(metric)
+            if await self.session.get(HealthMetricRow, key) is not None:
+                continue
+            self.session.add(
+                HealthMetricRow(
+                    metric_id=key,
+                    chain_id=metric.chain_id,
+                    measured_at=metric.measured_at,
+                    window_minutes=metric.window_minutes,
+                    request_count=metric.request_count,
+                    error_rate=metric.error_rate,
+                    p95_latency_ms=metric.p95_latency_ms,
+                    latest_block_number=metric.latest_block_number,
+                    block_disagreement=metric.block_disagreement,
+                    status=metric.status.value,
+                )
+            )
+            inserted += 1
+        await self.session.commit()
+        return inserted
+
+    async def recent(self, chain_id: int, limit: int = 100) -> list[HealthMetricRow]:
+        result = await self.session.scalars(
+            select(HealthMetricRow)
+            .where(HealthMetricRow.chain_id == chain_id)
+            .order_by(HealthMetricRow.measured_at.desc())
+            .limit(limit)
+        )
+        return list(result)
+
+
+class ObservationQualityRepository:
+    """Repository for idempotent data-quality reports."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, report: ObservationQualityReport) -> bool:
+        key = quality_report_id(report)
+        if await self.session.get(ObservationQualityRow, key) is not None:
+            return False
+        self.session.add(
+            ObservationQualityRow(
+                report_id=key,
+                checked_at=report.checked_at,
+                observation_count=report.observation_count,
+                stale=report.stale,
+                duplicate_count=report.duplicate_count,
+                gap_count=report.gap_count,
+                issues=list(report.issues),
+            )
+        )
+        await self.session.commit()
+        return True
 
 
 class PoolEventRepository:
