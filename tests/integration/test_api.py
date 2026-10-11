@@ -57,6 +57,42 @@ def test_readiness_endpoint_checks_database() -> None:
     asyncio.run(database.close())
 
 
+def test_endpoint_health_route_returns_provider_scores() -> None:
+    async def seed(database: Database) -> None:
+        await database.create_schema()
+        async with database.sessions() as session:
+            await ObservationRepository(session).add_many(
+                [
+                    RpcObservation(
+                        endpoint_name="base-a",
+                        chain_id=8453,
+                        observed_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+                        latency_ms=100,
+                        success=True,
+                        latest_block_number=100,
+                    ),
+                    RpcObservation(
+                        endpoint_name="base-b",
+                        chain_id=8453,
+                        observed_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+                        latency_ms=200,
+                        success=False,
+                        error_type="timeout",
+                    ),
+                ]
+            )
+
+    database = Database("sqlite+aiosqlite:///:memory:")
+    asyncio.run(seed(database))
+    client = TestClient(create_app(database))
+
+    response = client.get("/api/v1/chains/8453/endpoints/health")
+
+    assert response.status_code == 200
+    assert {item["endpoint_name"] for item in response.json()} == {"base-a", "base-b"}
+    asyncio.run(database.close())
+
+
 def test_overview_returns_observed_chains() -> None:
     async def seed(database: Database) -> None:
         await database.create_schema()

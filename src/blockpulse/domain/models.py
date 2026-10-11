@@ -66,6 +66,19 @@ class HealthMetric(BaseModel):
     status: HealthStatus
 
 
+class EndpointHealthScore(BaseModel):
+    """Provider-level reliability score for one observation window."""
+
+    endpoint_name: str
+    chain_id: int = Field(gt=0)
+    request_count: int = Field(ge=0)
+    success_rate: float = Field(ge=0, le=1)
+    average_latency_ms: float = Field(ge=0)
+    consecutive_failures: int = Field(ge=0)
+    score: float = Field(ge=0, le=1)
+    status: HealthStatus
+
+
 class AnomalyEvent(BaseModel):
     """A reproducible health anomaly derived from stored metrics."""
 

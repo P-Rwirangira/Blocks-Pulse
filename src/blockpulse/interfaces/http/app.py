@@ -4,7 +4,16 @@ from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
 from blockpulse.chain_health.application.service import HealthService
-from blockpulse.domain.models import HealthMetric, HealthOverview, PoolDefinition, PoolEvent, PoolMetric
+from blockpulse.chain_health.application.endpoint_health import calculate_endpoint_health
+from blockpulse.domain.models import (
+    EndpointHealthScore,
+    HealthMetric,
+    HealthOverview,
+    PoolDefinition,
+    PoolEvent,
+    PoolMetric,
+    RpcObservation,
+)
 from blockpulse.infrastructure.config.chains import configured_chains
 from blockpulse.infrastructure.config.pools import configured_pools
 from blockpulse.infrastructure.config.settings import get_settings
@@ -45,6 +54,28 @@ def create_app(database: Database | None = None) -> FastAPI:
             }
             for chain in configured_chains(settings)
         ]
+
+    @app.get("/api/v1/chains/{chain_id}/endpoints/health", response_model=list[EndpointHealthScore])
+    async def endpoint_health(chain_id: int) -> list[EndpointHealthScore]:
+        async with app.state.database.sessions() as session:
+            rows = await ObservationRepository(session).recent(chain_id, limit=500)
+        observations = [
+            RpcObservation(
+                endpoint_name=row.endpoint_name,
+                chain_id=row.chain_id,
+                observed_at=row.observed_at,
+                attempt=row.attempt,
+                latency_ms=row.latency_ms,
+                success=row.success,
+                latest_block_number=row.latest_block_number,
+                latest_block_hash=row.latest_block_hash,
+                latest_parent_hash=row.latest_parent_hash,
+                error_type=row.error_type,
+                raw_payload=row.raw_payload,
+            )
+            for row in rows
+        ]
+        return calculate_endpoint_health(observations)
 
     @app.get("/api/v1/chains/{chain_id}/health", response_model=HealthMetric)
     async def chain_health(chain_id: int) -> HealthMetric:
