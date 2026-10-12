@@ -1,11 +1,13 @@
 """Command-line entry point for a single Phase 1 collection cycle."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from blockpulse.infrastructure.config.chains import enabled_chains, providers_for_chain
 from blockpulse.infrastructure.config.settings import get_settings
 from blockpulse.infrastructure.database.repositories import Database, ObservationRepository
+from blockpulse.infrastructure.database.repositories import ObservationQualityRepository
+from blockpulse.chain_health.application.quality import assess_observation_quality
 from blockpulse.chain_health.application.collection import MultiChainCollectionService
 from blockpulse.chain_health.application.worker import CollectionWorker
 
@@ -30,6 +32,12 @@ async def collect_once() -> int:
                 retries=settings.rpc_retries,
                 retry_backoff_seconds=settings.rpc_retry_backoff_seconds,
             ).collect_once(datetime.now(UTC))
+            quality = assess_observation_quality(
+                [item for values in observations_by_chain.values() for item in values],
+                checked_at=datetime.now(UTC),
+                expected_interval=timedelta(seconds=settings.collection_interval_seconds),
+            )
+            await ObservationQualityRepository(session).add(quality)
         observations = [item for values in observations_by_chain.values() for item in values]
         successful = sum(item.success for item in observations)
         print(

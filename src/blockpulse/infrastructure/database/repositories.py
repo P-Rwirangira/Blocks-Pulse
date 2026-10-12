@@ -241,6 +241,14 @@ class ObservationQualityRepository:
         await self.session.commit()
         return True
 
+    async def recent(self, limit: int = 100) -> list[ObservationQualityRow]:
+        result = await self.session.scalars(
+            select(ObservationQualityRow)
+            .order_by(ObservationQualityRow.checked_at.desc())
+            .limit(limit)
+        )
+        return list(result)
+
 
 class PoolEventRepository:
     """Repository implementing idempotent normalized event persistence."""
