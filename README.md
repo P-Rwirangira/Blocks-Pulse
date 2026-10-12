@@ -14,6 +14,7 @@ Copy-Item .env.example .env
 docker compose up -d postgres
 blockpulse-migrate
 blockpulse-collect
+blockpulse-backfill-health 8453 --window-minutes 15
 uvicorn blockpulse.api:app --reload
 ```
 
@@ -22,6 +23,18 @@ The collector requires a real Base RPC URL in `.env`. Tests use deterministic fa
 Production or shared environments should run `blockpulse-migrate` before starting
 the collector or API. Schema changes belong in `migrations/versions/` and must be
 reversible; test databases may continue to use automatic schema creation.
+
+## Phase 4 status
+
+Phase 4 ingestion reliability is implemented. The system now provides retry
+backoff, endpoint circuit breaking, continuous collection, raw RPC payload and
+block-identity capture, reorganization signals, restartable pool backfill,
+historical health projection, persisted quality reports, endpoint scoring,
+readiness checks, structured collection counters, and reversible migrations.
+
+Use `blockpulse-backfill-health <chain_id>` to materialize historical metrics from
+stored observations. This is deliberately a projection of captured data; it does
+not claim that a normal public RPC can reconstruct unavailable historical state.
 
 The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others. Pool addresses and token metadata are supplied through `BLOCKPULSE_POOLS_JSON`. V3 pool entries should include `version: "v3"`, `fee_tier`, and `tick_spacing`.
 
