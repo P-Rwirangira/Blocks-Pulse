@@ -79,6 +79,22 @@ class EndpointHealthScore(BaseModel):
     status: HealthStatus
 
 
+class FeatureSnapshot(BaseModel):
+    """Versioned, traceable feature value for an ML input window."""
+
+    feature_id: str
+    feature_name: str
+    feature_version: str
+    entity_type: str
+    entity_id: str
+    chain_id: int = Field(gt=0)
+    measured_at: datetime
+    window_minutes: int = Field(gt=0)
+    value: float
+    source_observation_ids: list[str] = Field(min_length=1)
+    quality_status: str = "valid"
+
+
 class AnomalyEvent(BaseModel):
     """A reproducible health anomaly derived from stored metrics."""
 
