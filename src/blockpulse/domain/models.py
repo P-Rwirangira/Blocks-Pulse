@@ -87,7 +87,8 @@ class FeatureSnapshot(BaseModel):
     feature_version: str
     entity_type: str
     entity_id: str
-    chain_id: int = Field(gt=0)
+    # Zero denotes a deliberately cross-chain feature scope.
+    chain_id: int = Field(ge=0)
     measured_at: datetime
     window_minutes: int = Field(gt=0)
     value: float
