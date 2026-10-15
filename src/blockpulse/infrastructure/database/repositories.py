@@ -8,7 +8,7 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain.models import HealthMetric, PoolEvent, RpcObservation
+from blockpulse.domain.models import FeatureSnapshot, HealthMetric, PoolEvent, RpcObservation
 from blockpulse.chain_health.application.quality import ObservationQualityReport
 
 
@@ -98,6 +98,24 @@ class ObservationQualityRow(Base):
     duplicate_count: Mapped[int] = mapped_column(Integer)
     gap_count: Mapped[int] = mapped_column(Integer)
     issues: Mapped[list] = mapped_column(JSON)
+
+
+class FeatureSnapshotRow(Base):
+    """Persisted versioned ML feature value."""
+
+    __tablename__ = "feature_snapshots"
+
+    feature_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    feature_name: Mapped[str] = mapped_column(String(100), index=True)
+    feature_version: Mapped[str] = mapped_column(String(40), index=True)
+    entity_type: Mapped[str] = mapped_column(String(40), index=True)
+    entity_id: Mapped[str] = mapped_column(String(160), index=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    window_minutes: Mapped[int] = mapped_column(Integer)
+    value: Mapped[float] = mapped_column(Float)
+    source_observation_ids: Mapped[list] = mapped_column(JSON)
+    quality_status: Mapped[str] = mapped_column(String(30))
 
 
 def observation_id(observation: RpcObservation) -> str:
@@ -245,6 +263,46 @@ class ObservationQualityRepository:
         result = await self.session.scalars(
             select(ObservationQualityRow)
             .order_by(ObservationQualityRow.checked_at.desc())
+            .limit(limit)
+        )
+        return list(result)
+
+
+class FeatureRepository:
+    """Repository for idempotent, traceable feature snapshots."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add_many(self, features: Sequence[FeatureSnapshot]) -> int:
+        inserted = 0
+        for feature in features:
+            if await self.session.get(FeatureSnapshotRow, feature.feature_id) is not None:
+                continue
+            self.session.add(
+                FeatureSnapshotRow(
+                    feature_id=feature.feature_id,
+                    feature_name=feature.feature_name,
+                    feature_version=feature.feature_version,
+                    entity_type=feature.entity_type,
+                    entity_id=feature.entity_id,
+                    chain_id=feature.chain_id,
+                    measured_at=feature.measured_at,
+                    window_minutes=feature.window_minutes,
+                    value=feature.value,
+                    source_observation_ids=feature.source_observation_ids,
+                    quality_status=feature.quality_status,
+                )
+            )
+            inserted += 1
+        await self.session.commit()
+        return inserted
+
+    async def recent(self, entity_id: str, limit: int = 500) -> list[FeatureSnapshotRow]:
+        result = await self.session.scalars(
+            select(FeatureSnapshotRow)
+            .where(FeatureSnapshotRow.entity_id == entity_id)
+            .order_by(FeatureSnapshotRow.measured_at.desc())
             .limit(limit)
         )
         return list(result)

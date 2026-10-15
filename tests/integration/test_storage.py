@@ -1,10 +1,11 @@
 import asyncio
 from datetime import UTC, datetime
 
-from blockpulse.domain import HealthMetric, HealthStatus, RpcObservation
+from blockpulse.domain import FeatureSnapshot, HealthMetric, HealthStatus, RpcObservation
 from blockpulse.storage import (
     Database,
     HealthMetricRepository,
+    FeatureRepository,
     ObservationQualityRepository,
     ObservationRepository,
 )
@@ -66,6 +67,32 @@ def test_metrics_and_quality_reports_are_idempotent() -> None:
             assert len(await metrics.recent(8453)) == 1
             assert await quality.add(report) is True
             assert await quality.add(report) is False
+        await database.close()
+
+    asyncio.run(scenario())
+
+
+def test_feature_snapshots_are_idempotent_and_traceable() -> None:
+    async def scenario() -> None:
+        database = Database("sqlite+aiosqlite:///:memory:")
+        await database.create_schema()
+        feature = FeatureSnapshot(
+            feature_id="feature-1",
+            feature_name="rpc_error_rate",
+            feature_version="rpc-v1",
+            entity_type="chain",
+            entity_id="8453",
+            chain_id=8453,
+            measured_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+            window_minutes=15,
+            value=0.1,
+            source_observation_ids=["observation-1"],
+        )
+        async with database.sessions() as session:
+            repository = FeatureRepository(session)
+            assert await repository.add_many([feature, feature]) == 1
+            rows = await repository.recent("8453")
+            assert rows[0].source_observation_ids == ["observation-1"]
         await database.close()
 
     asyncio.run(scenario())
