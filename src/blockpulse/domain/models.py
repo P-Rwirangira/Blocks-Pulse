@@ -96,6 +96,23 @@ class FeatureSnapshot(BaseModel):
     quality_status: str = "valid"
 
 
+class AnomalyScore(BaseModel):
+    """Versioned anomaly result with traceable feature evidence."""
+
+    anomaly_id: str
+    detector_name: str
+    detector_version: str
+    entity_type: str
+    entity_id: str
+    chain_id: int = Field(ge=0)
+    detected_at: datetime
+    score: float = Field(ge=0, le=1)
+    severity: HealthStatus
+    drivers: list[str] = Field(min_length=1)
+    feature_ids: list[str] = Field(min_length=1)
+    quality_status: str = "valid"
+
+
 class AnomalyEvent(BaseModel):
     """A reproducible health anomaly derived from stored metrics."""
 
