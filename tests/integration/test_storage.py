@@ -1,11 +1,12 @@
 import asyncio
 from datetime import UTC, datetime
 
-from blockpulse.domain import FeatureSnapshot, HealthMetric, HealthStatus, RpcObservation
+from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, RpcObservation
 from blockpulse.storage import (
     Database,
     HealthMetricRepository,
     FeatureRepository,
+    AnomalyRepository,
     ObservationQualityRepository,
     ObservationRepository,
 )
@@ -93,6 +94,32 @@ def test_feature_snapshots_are_idempotent_and_traceable() -> None:
             assert await repository.add_many([feature, feature]) == 1
             rows = await repository.recent("8453")
             assert rows[0].source_observation_ids == ["observation-1"]
+        await database.close()
+
+    asyncio.run(scenario())
+
+
+def test_anomaly_scores_are_idempotent_and_traceable() -> None:
+    async def scenario() -> None:
+        database = Database("sqlite+aiosqlite:///:memory:")
+        await database.create_schema()
+        anomaly = AnomalyScore(
+            anomaly_id="anomaly-1",
+            detector_name="robust_mad",
+            detector_version="mad-v1",
+            entity_type="chain",
+            entity_id="8453",
+            chain_id=8453,
+            detected_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+            score=0.8,
+            severity=HealthStatus.CRITICAL,
+            drivers=["rpc_error_rate"],
+            feature_ids=["feature-1"],
+        )
+        async with database.sessions() as session:
+            repository = AnomalyRepository(session)
+            assert await repository.add_many([anomaly, anomaly]) == 1
+            assert (await repository.recent("8453"))[0].feature_ids == ["feature-1"]
         await database.close()
 
     asyncio.run(scenario())

@@ -8,7 +8,7 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain.models import FeatureSnapshot, HealthMetric, PoolEvent, RpcObservation
+from blockpulse.domain.models import AnomalyScore, FeatureSnapshot, HealthMetric, PoolEvent, RpcObservation
 from blockpulse.chain_health.application.quality import ObservationQualityReport
 
 
@@ -115,6 +115,25 @@ class FeatureSnapshotRow(Base):
     window_minutes: Mapped[int] = mapped_column(Integer)
     value: Mapped[float] = mapped_column(Float)
     source_observation_ids: Mapped[list] = mapped_column(JSON)
+    quality_status: Mapped[str] = mapped_column(String(30))
+
+
+class AnomalyScoreRow(Base):
+    """Persisted detector output with feature evidence."""
+
+    __tablename__ = "anomaly_scores"
+
+    anomaly_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    detector_name: Mapped[str] = mapped_column(String(80), index=True)
+    detector_version: Mapped[str] = mapped_column(String(40), index=True)
+    entity_type: Mapped[str] = mapped_column(String(40), index=True)
+    entity_id: Mapped[str] = mapped_column(String(160), index=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    score: Mapped[float] = mapped_column(Float)
+    severity: Mapped[str] = mapped_column(String(20))
+    drivers: Mapped[list] = mapped_column(JSON)
+    feature_ids: Mapped[list] = mapped_column(JSON)
     quality_status: Mapped[str] = mapped_column(String(30))
 
 
@@ -303,6 +322,47 @@ class FeatureRepository:
             select(FeatureSnapshotRow)
             .where(FeatureSnapshotRow.entity_id == entity_id)
             .order_by(FeatureSnapshotRow.measured_at.desc())
+            .limit(limit)
+        )
+        return list(result)
+
+
+class AnomalyRepository:
+    """Repository for idempotent anomaly detector outputs."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add_many(self, anomalies: Sequence[AnomalyScore]) -> int:
+        inserted = 0
+        for anomaly in anomalies:
+            if await self.session.get(AnomalyScoreRow, anomaly.anomaly_id) is not None:
+                continue
+            self.session.add(
+                AnomalyScoreRow(
+                    anomaly_id=anomaly.anomaly_id,
+                    detector_name=anomaly.detector_name,
+                    detector_version=anomaly.detector_version,
+                    entity_type=anomaly.entity_type,
+                    entity_id=anomaly.entity_id,
+                    chain_id=anomaly.chain_id,
+                    detected_at=anomaly.detected_at,
+                    score=anomaly.score,
+                    severity=anomaly.severity.value,
+                    drivers=anomaly.drivers,
+                    feature_ids=anomaly.feature_ids,
+                    quality_status=anomaly.quality_status,
+                )
+            )
+            inserted += 1
+        await self.session.commit()
+        return inserted
+
+    async def recent(self, entity_id: str, limit: int = 100) -> list[AnomalyScoreRow]:
+        result = await self.session.scalars(
+            select(AnomalyScoreRow)
+            .where(AnomalyScoreRow.entity_id == entity_id)
+            .order_by(AnomalyScoreRow.detected_at.desc())
             .limit(limit)
         )
         return list(result)
