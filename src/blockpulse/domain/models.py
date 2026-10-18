@@ -96,6 +96,19 @@ class FeatureSnapshot(BaseModel):
     quality_status: str = "valid"
 
 
+class FeatureVector(BaseModel):
+    """Aligned multivariate feature row for model training or scoring."""
+
+    vector_id: str
+    entity_type: str
+    entity_id: str
+    chain_id: int = Field(ge=0)
+    measured_at: datetime
+    feature_values: dict[str, float]
+    feature_ids: dict[str, str]
+    quality_status: str = "valid"
+
+
 class AnomalyScore(BaseModel):
     """Versioned anomaly result with traceable feature evidence."""
 
