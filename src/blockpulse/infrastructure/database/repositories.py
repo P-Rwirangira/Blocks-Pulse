@@ -8,7 +8,7 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain.models import AnomalyScore, FeatureSnapshot, HealthMetric, PoolEvent, RpcObservation
+from blockpulse.domain.models import AnomalyScore, FeatureSnapshot, HealthMetric, ModelEvaluation, PoolEvent, RpcObservation
 from blockpulse.chain_health.application.quality import ObservationQualityReport
 
 
@@ -135,6 +135,26 @@ class AnomalyScoreRow(Base):
     drivers: Mapped[list] = mapped_column(JSON)
     feature_ids: Mapped[list] = mapped_column(JSON)
     quality_status: Mapped[str] = mapped_column(String(30))
+
+
+class ModelEvaluationRow(Base):
+    """Persisted detector evaluation result."""
+
+    __tablename__ = "model_evaluations"
+
+    run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    detector_name: Mapped[str] = mapped_column(String(80), index=True)
+    detector_version: Mapped[str] = mapped_column(String(40), index=True)
+    feature_version: Mapped[str] = mapped_column(String(40), index=True)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    train_count: Mapped[int] = mapped_column(Integer)
+    validation_count: Mapped[int] = mapped_column(Integer)
+    test_count: Mapped[int] = mapped_column(Integer)
+    precision: Mapped[float] = mapped_column(Float)
+    recall: Mapped[float] = mapped_column(Float)
+    false_positive_rate: Mapped[float] = mapped_column(Float)
+    detection_delay_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    parameters: Mapped[dict] = mapped_column(JSON)
 
 
 def observation_id(observation: RpcObservation) -> str:
@@ -366,6 +386,36 @@ class AnomalyRepository:
             .limit(limit)
         )
         return list(result)
+
+
+class EvaluationRepository:
+    """Repository for immutable model-evaluation records."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, evaluation: ModelEvaluation) -> bool:
+        if await self.session.get(ModelEvaluationRow, evaluation.run_id) is not None:
+            return False
+        self.session.add(
+            ModelEvaluationRow(
+                run_id=evaluation.run_id,
+                detector_name=evaluation.detector_name,
+                detector_version=evaluation.detector_version,
+                feature_version=evaluation.feature_version,
+                evaluated_at=evaluation.evaluated_at,
+                train_count=evaluation.train_count,
+                validation_count=evaluation.validation_count,
+                test_count=evaluation.test_count,
+                precision=evaluation.precision,
+                recall=evaluation.recall,
+                false_positive_rate=evaluation.false_positive_rate,
+                detection_delay_seconds=evaluation.detection_delay_seconds,
+                parameters=evaluation.parameters,
+            )
+        )
+        await self.session.commit()
+        return True
 
 
 class PoolEventRepository:

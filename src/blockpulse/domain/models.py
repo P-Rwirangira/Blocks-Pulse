@@ -126,6 +126,24 @@ class AnomalyScore(BaseModel):
     quality_status: str = "valid"
 
 
+class ModelEvaluation(BaseModel):
+    """Immutable evaluation record for a detector version."""
+
+    run_id: str
+    detector_name: str
+    detector_version: str
+    feature_version: str
+    evaluated_at: datetime
+    train_count: int = Field(ge=0)
+    validation_count: int = Field(ge=0)
+    test_count: int = Field(ge=0)
+    precision: float = Field(ge=0, le=1)
+    recall: float = Field(ge=0, le=1)
+    false_positive_rate: float = Field(ge=0, le=1)
+    detection_delay_seconds: float | None = Field(default=None, ge=0)
+    parameters: dict[str, Any]
+
+
 class AnomalyEvent(BaseModel):
     """A reproducible health anomaly derived from stored metrics."""
 
