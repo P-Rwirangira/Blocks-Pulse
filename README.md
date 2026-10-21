@@ -53,7 +53,13 @@ The collector can run any configured subset of the three supported chains. One c
 - `docs/ARCHITECTURE_RULES.md` - system boundaries and preferred patterns.
 - `docs/SELF_IMPROVING.md` - process for turning failures into durable controls.
 - `BlockPulse_Project_Prototype_Expanded.pdf` - full visual product and system blueprint.
+- `docs/PHASE5_ML_RUNBOOK.md` - feature, detector, evaluation, and ML operating rules.
 
 ## Prototype data note
 
 Charts in the prototype are illustrative demo telemetry. They are not live measurements and must be replaced or clearly labelled when the implementation begins.
+
+Phase 5 now provides the first end-to-end ML foundation: traceable features,
+deterministic baselines, a seeded multivariate detector, persisted anomaly scores,
+and time-aware evaluation records. Phase 6 can build incident lifecycle and
+evidence packaging on these outputs.
