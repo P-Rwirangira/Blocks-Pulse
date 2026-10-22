@@ -1,13 +1,22 @@
 import asyncio
 from datetime import UTC, datetime
 
-from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, ModelEvaluation, RpcObservation
+from blockpulse.domain import (
+    AnomalyScore,
+    FeatureSnapshot,
+    HealthMetric,
+    HealthStatus,
+    IncidentEvidence,
+    ModelEvaluation,
+    RpcObservation,
+)
 from blockpulse.storage import (
     Database,
     HealthMetricRepository,
     FeatureRepository,
     AnomalyRepository,
     EvaluationRepository,
+    IncidentRepository,
     ObservationQualityRepository,
     ObservationRepository,
 )
@@ -148,6 +157,49 @@ def test_model_evaluations_are_idempotent() -> None:
             repository = EvaluationRepository(session)
             assert await repository.add(evaluation) is True
             assert await repository.add(evaluation) is False
+        await database.close()
+
+    asyncio.run(scenario())
+
+
+def test_incidents_evidence_and_history_are_idempotent() -> None:
+    async def scenario() -> None:
+        database = Database("sqlite+aiosqlite:///:memory:")
+        await database.create_schema()
+        score = AnomalyScore(
+            anomaly_id="score-1",
+            detector_name="ewma",
+            detector_version="ewma-v1",
+            entity_type="chain",
+            entity_id="8453",
+            chain_id=8453,
+            detected_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+            score=0.8,
+            severity=HealthStatus.WARNING,
+            drivers=["rpc_latency"],
+            feature_ids=["feature-1"],
+        )
+        from blockpulse.incidents import IncidentService
+
+        incident = IncidentService().open_from_score(score)
+        evidence = IncidentEvidence(
+            evidence_id="evidence-1",
+            incident_id=incident.incident_id,
+            evidence_type="feature_snapshot",
+            source_id="feature-1",
+            observed_at=score.detected_at,
+            summary="RPC latency exceeded baseline",
+            payload={"value": 2000.0},
+        )
+        async with database.sessions() as session:
+            repository = IncidentRepository(session)
+            assert await repository.add(incident) is True
+            assert await repository.add(incident) is False
+            assert await repository.add_evidence(evidence) is True
+            assert await repository.add_evidence(evidence) is False
+            rows = await repository.recent(8453)
+            assert rows[0].fingerprint == incident.fingerprint
+            assert (await repository.evidence(incident.incident_id))[0].source_id == "feature-1"
         await database.close()
 
     asyncio.run(scenario())

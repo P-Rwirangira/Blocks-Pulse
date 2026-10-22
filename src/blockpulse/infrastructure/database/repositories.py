@@ -8,7 +8,17 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from blockpulse.domain.models import AnomalyScore, FeatureSnapshot, HealthMetric, ModelEvaluation, PoolEvent, RpcObservation
+from blockpulse.domain.models import (
+    AnomalyScore,
+    FeatureSnapshot,
+    HealthMetric,
+    Incident,
+    IncidentEvidence,
+    IncidentStatusChange,
+    ModelEvaluation,
+    PoolEvent,
+    RpcObservation,
+)
 from blockpulse.chain_health.application.quality import ObservationQualityReport
 
 
@@ -155,6 +165,51 @@ class ModelEvaluationRow(Base):
     false_positive_rate: Mapped[float] = mapped_column(Float)
     detection_delay_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     parameters: Mapped[dict] = mapped_column(JSON)
+
+
+class IncidentRow(Base):
+    """Operator incident projection with a stable grouping fingerprint."""
+
+    __tablename__ = "incidents"
+
+    incident_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    severity: Mapped[str] = mapped_column(String(20), index=True)
+    title: Mapped[str] = mapped_column(String(240))
+    anomaly_event_id: Mapped[str] = mapped_column(String(64), index=True)
+    anomaly_score_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    evidence_ids: Mapped[list] = mapped_column(JSON)
+    fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+
+class IncidentEvidenceRow(Base):
+    """Typed, immutable reference to an evidence record."""
+
+    __tablename__ = "incident_evidence"
+
+    evidence_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(String(64), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(40), index=True)
+    source_id: Mapped[str] = mapped_column(String(160), index=True)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    summary: Mapped[str] = mapped_column(String(500))
+    payload: Mapped[dict] = mapped_column(JSON)
+
+
+class IncidentStatusChangeRow(Base):
+    """Append-only incident lifecycle audit record."""
+
+    __tablename__ = "incident_status_changes"
+
+    change_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(String(64), index=True)
+    from_status: Mapped[str] = mapped_column(String(20))
+    to_status: Mapped[str] = mapped_column(String(20))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    actor: Mapped[str] = mapped_column(String(120))
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 
 def observation_id(observation: RpcObservation) -> str:
@@ -416,6 +471,91 @@ class EvaluationRepository:
         )
         await self.session.commit()
         return True
+
+
+class IncidentRepository:
+    """Repository for idempotent incidents and append-only evidence."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, incident: Incident) -> bool:
+        if await self.session.get(IncidentRow, incident.incident_id) is not None:
+            return False
+        self.session.add(
+            IncidentRow(
+                incident_id=incident.incident_id,
+                chain_id=incident.chain_id,
+                created_at=incident.created_at,
+                status=incident.status.value,
+                severity=incident.severity.value,
+                title=incident.title,
+                anomaly_event_id=incident.anomaly_event_id,
+                anomaly_score_id=incident.anomaly_score_id,
+                evidence_ids=incident.evidence_ids,
+                fingerprint=incident.fingerprint,
+            )
+        )
+        await self.session.commit()
+        return True
+
+    async def recent(self, chain_id: int | None = None, limit: int = 100) -> list[IncidentRow]:
+        statement = select(IncidentRow).order_by(IncidentRow.created_at.desc()).limit(limit)
+        if chain_id is not None:
+            statement = statement.where(IncidentRow.chain_id == chain_id)
+        result = await self.session.scalars(statement)
+        return list(result)
+
+    async def add_evidence(self, evidence: IncidentEvidence) -> bool:
+        if await self.session.get(IncidentEvidenceRow, evidence.evidence_id) is not None:
+            return False
+        self.session.add(
+            IncidentEvidenceRow(
+                evidence_id=evidence.evidence_id,
+                incident_id=evidence.incident_id,
+                evidence_type=evidence.evidence_type,
+                source_id=evidence.source_id,
+                observed_at=evidence.observed_at,
+                summary=evidence.summary,
+                payload=evidence.payload,
+            )
+        )
+        await self.session.commit()
+        return True
+
+    async def evidence(self, incident_id: str, limit: int = 500) -> list[IncidentEvidenceRow]:
+        result = await self.session.scalars(
+            select(IncidentEvidenceRow)
+            .where(IncidentEvidenceRow.incident_id == incident_id)
+            .order_by(IncidentEvidenceRow.observed_at.desc())
+            .limit(limit)
+        )
+        return list(result)
+
+    async def add_status_change(self, change: IncidentStatusChange) -> bool:
+        if await self.session.get(IncidentStatusChangeRow, change.change_id) is not None:
+            return False
+        self.session.add(
+            IncidentStatusChangeRow(
+                change_id=change.change_id,
+                incident_id=change.incident_id,
+                from_status=change.from_status.value,
+                to_status=change.to_status.value,
+                changed_at=change.changed_at,
+                actor=change.actor,
+                reason=change.reason,
+            )
+        )
+        await self.session.commit()
+        return True
+
+    async def status_history(self, incident_id: str) -> list[IncidentStatusChangeRow]:
+        result = await self.session.scalars(
+            select(IncidentStatusChangeRow)
+            .where(IncidentStatusChangeRow.incident_id == incident_id)
+            .order_by(IncidentStatusChangeRow.changed_at.asc())
+        )
+        return list(result)
 
 
 class PoolEventRepository:
