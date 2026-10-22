@@ -21,6 +21,17 @@ class IncidentStatus(StrEnum):
     SUPPRESSED = "suppressed"
 
 
+class IncidentTransition(BaseModel):
+    """Auditable status change performed by an operator or workflow."""
+
+    incident_id: str
+    from_status: IncidentStatus
+    to_status: IncidentStatus
+    changed_at: datetime
+    actor: str
+    reason: str | None = None
+
+
 class RpcObservation(BaseModel):
     """One measured JSON-RPC request result."""
 
@@ -167,6 +178,32 @@ class Incident(BaseModel):
     title: str
     anomaly_event_id: str
     evidence_ids: list[str] = Field(default_factory=list)
+    anomaly_score_id: str | None = None
+    fingerprint: str | None = None
+
+
+class IncidentEvidence(BaseModel):
+    """A typed reference to a stored fact used to explain an incident."""
+
+    evidence_id: str
+    incident_id: str
+    evidence_type: str
+    source_id: str
+    observed_at: datetime
+    summary: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class IncidentStatusChange(BaseModel):
+    """Append-only lifecycle event for an incident."""
+
+    change_id: str
+    incident_id: str
+    from_status: IncidentStatus
+    to_status: IncidentStatus
+    changed_at: datetime
+    actor: str
+    reason: str | None = None
 
 
 class ChainHealthSummary(BaseModel):
