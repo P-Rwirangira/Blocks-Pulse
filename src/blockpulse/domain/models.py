@@ -206,6 +206,20 @@ class IncidentStatusChange(BaseModel):
     reason: str | None = None
 
 
+class EvidencePackage(BaseModel):
+    """Bounded facts supplied to an analyst or AI explanation layer."""
+
+    package_id: str
+    incident_id: str
+    generated_at: datetime
+    evidence: list[IncidentEvidence] = Field(default_factory=list)
+    detector_name: str | None = None
+    detector_version: str | None = None
+    anomaly_score: float | None = Field(default=None, ge=0, le=1)
+    quality_warnings: list[str] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
+
+
 class ChainHealthSummary(BaseModel):
     """Named health summary for one configured chain."""
 

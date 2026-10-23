@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 
 from blockpulse.detectors import detect_rpc_anomaly
-from blockpulse.domain import AnomalyScore, HealthMetric, HealthStatus, IncidentStatus
+from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus
 from blockpulse.incidents import IncidentService
+from blockpulse.incidents.application.evidence import EvidencePackageBuilder
 
 
 def test_detector_returns_drivers_for_latency_anomaly() -> None:
@@ -85,3 +86,26 @@ def test_score_incident_is_grouped_and_transition_is_audited() -> None:
         assert "Invalid incident transition" in str(error)
     else:
         raise AssertionError("open incidents must not skip investigation")
+
+
+def test_evidence_package_is_deterministic_and_warns_on_quality() -> None:
+    score = AnomalyScore(
+        anomaly_id="score-1", detector_name="ewma", detector_version="ewma-v1",
+        entity_type="chain", entity_id="8453", chain_id=8453,
+        detected_at=datetime(2026, 9, 1, 10, 0, tzinfo=UTC), score=0.9,
+        severity=HealthStatus.CRITICAL, drivers=["rpc_latency"], feature_ids=["feature-1"],
+    )
+    incident = IncidentService().open_from_score(score)
+    feature = FeatureSnapshot(
+        feature_id="feature-1", feature_name="rpc_latency", feature_version="rpc-v1",
+        entity_type="chain", entity_id="8453", chain_id=8453,
+        measured_at=score.detected_at, window_minutes=15, value=2000,
+        source_observation_ids=["observation-1"], quality_status="stale",
+    )
+    builder = EvidencePackageBuilder()
+    package = builder.build(incident, score, [feature], generated_at=score.detected_at)
+    repeat = builder.build(incident, score, [feature], generated_at=score.detected_at)
+    assert package.package_id == repeat.package_id
+    assert len(package.evidence) == 2
+    assert package.quality_warnings == ["Feature feature-1 is stale."]
+    assert package.unknowns
