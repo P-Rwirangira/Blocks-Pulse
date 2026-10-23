@@ -4,6 +4,7 @@ from blockpulse.detectors import detect_rpc_anomaly
 from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus
 from blockpulse.incidents import IncidentService
 from blockpulse.incidents.application.evidence import EvidencePackageBuilder
+from blockpulse.incidents.application.tools import ToolRequest, package_tool_registry
 
 
 def test_detector_returns_drivers_for_latency_anomaly() -> None:
@@ -109,3 +110,25 @@ def test_evidence_package_is_deterministic_and_warns_on_quality() -> None:
     assert len(package.evidence) == 2
     assert package.quality_warnings == ["Feature feature-1 is stale."]
     assert package.unknowns
+
+
+def test_read_only_tools_are_allow_listed_and_evidence_bearing() -> None:
+    score = AnomalyScore(
+        anomaly_id="score-2", detector_name="mad", detector_version="mad-v1",
+        entity_type="chain", entity_id="1", chain_id=1,
+        detected_at=datetime(2026, 9, 1, 10, 0, tzinfo=UTC), score=0.7,
+        severity=HealthStatus.WARNING, drivers=["rpc_error_rate"], feature_ids=["feature-2"],
+    )
+    package = EvidencePackageBuilder().build(
+        IncidentService().open_from_score(score), score, [], generated_at=score.detected_at
+    )
+    registry = package_tool_registry(package)
+    result = registry.execute(ToolRequest(tool_name="incident.summary"))
+    assert result.evidence_ids
+    with_error = ToolRequest(tool_name="incident.evidence", arguments={"evidence_id": "missing"})
+    try:
+        registry.execute(with_error)
+    except ValueError as error:
+        assert "not present" in str(error)
+    else:
+        raise AssertionError("unknown evidence must be rejected")
