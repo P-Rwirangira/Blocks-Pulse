@@ -1,6 +1,6 @@
 """FastAPI surface for Phase 1 health data."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from sqlalchemy import text
 
 from blockpulse.chain_health.application.service import HealthService
@@ -17,7 +17,12 @@ from blockpulse.domain.models import (
 from blockpulse.infrastructure.config.chains import configured_chains
 from blockpulse.infrastructure.config.pools import configured_pools
 from blockpulse.infrastructure.config.settings import get_settings
-from blockpulse.infrastructure.database.repositories import Database, ObservationRepository, PoolEventRepository
+from blockpulse.infrastructure.database.repositories import (
+    Database,
+    IncidentRepository,
+    ObservationRepository,
+    PoolEventRepository,
+)
 from blockpulse.liquidity.application.service import PoolService
 
 
@@ -91,6 +96,66 @@ def create_app(database: Database | None = None) -> FastAPI:
         async with app.state.database.sessions() as session:
             service = HealthService(ObservationRepository(session))
             return await service.overview(configured_chains(settings), settings.health_window_minutes)
+
+    @app.get("/api/v1/incidents")
+    async def incidents(
+        chain_id: int | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, object]]:
+        """List operator incidents through a bounded read-only projection."""
+
+        async with app.state.database.sessions() as session:
+            rows = await IncidentRepository(session).recent(chain_id=chain_id, limit=limit)
+        return [
+            {
+                "incident_id": row.incident_id,
+                "chain_id": row.chain_id,
+                "created_at": row.created_at,
+                "status": row.status,
+                "severity": row.severity,
+                "title": row.title,
+                "anomaly_score_id": row.anomaly_score_id,
+                "evidence_ids": row.evidence_ids,
+            }
+            for row in rows
+        ]
+
+    @app.get("/api/v1/incidents/{incident_id}/evidence")
+    async def incident_evidence(
+        incident_id: str,
+        limit: int = Query(default=500, ge=1, le=1000),
+    ) -> list[dict[str, object]]:
+        async with app.state.database.sessions() as session:
+            rows = await IncidentRepository(session).evidence(incident_id, limit=limit)
+        return [
+            {
+                "evidence_id": row.evidence_id,
+                "incident_id": row.incident_id,
+                "evidence_type": row.evidence_type,
+                "source_id": row.source_id,
+                "observed_at": row.observed_at,
+                "summary": row.summary,
+                "payload": row.payload,
+            }
+            for row in rows
+        ]
+
+    @app.get("/api/v1/incidents/{incident_id}/timeline")
+    async def incident_timeline(incident_id: str) -> list[dict[str, object]]:
+        async with app.state.database.sessions() as session:
+            rows = await IncidentRepository(session).status_history(incident_id)
+        return [
+            {
+                "change_id": row.change_id,
+                "incident_id": row.incident_id,
+                "from_status": row.from_status,
+                "to_status": row.to_status,
+                "changed_at": row.changed_at,
+                "actor": row.actor,
+                "reason": row.reason,
+            }
+            for row in rows
+        ]
 
     @app.get("/api/v1/pools", response_model=list[PoolDefinition])
     async def pools() -> list[PoolDefinition]:
