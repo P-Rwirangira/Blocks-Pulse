@@ -1,6 +1,9 @@
 """FastAPI surface for Phase 1 health data."""
 
+from datetime import UTC, datetime
+
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from blockpulse.chain_health.application.service import HealthService
@@ -9,6 +12,8 @@ from blockpulse.domain.models import (
     EndpointHealthScore,
     HealthMetric,
     HealthOverview,
+    Incident,
+    IncidentStatus,
     PoolDefinition,
     PoolEvent,
     PoolMetric,
@@ -24,6 +29,15 @@ from blockpulse.infrastructure.database.repositories import (
     PoolEventRepository,
 )
 from blockpulse.liquidity.application.service import PoolService
+from blockpulse.incidents.application.service import IncidentService
+
+
+class IncidentTransitionRequest(BaseModel):
+    """Explicit operator intent for one lifecycle change."""
+
+    status: IncidentStatus
+    actor: str = Field(min_length=1, max_length=120)
+    reason: str | None = Field(default=None, max_length=500)
 
 
 def create_app(database: Database | None = None) -> FastAPI:
@@ -156,6 +170,42 @@ def create_app(database: Database | None = None) -> FastAPI:
             }
             for row in rows
         ]
+
+    @app.post("/api/v1/incidents/{incident_id}/transition")
+    async def transition_incident(
+        incident_id: str,
+        request: IncidentTransitionRequest,
+    ) -> dict[str, object]:
+        async with app.state.database.sessions() as session:
+            repository = IncidentRepository(session)
+            row = await repository.get(incident_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="incident not found")
+            incident = Incident(
+                incident_id=row.incident_id,
+                chain_id=row.chain_id,
+                created_at=row.created_at,
+                status=IncidentStatus(row.status),
+                severity=row.severity,
+                title=row.title,
+                anomaly_event_id=row.anomaly_event_id,
+                anomaly_score_id=row.anomaly_score_id,
+                evidence_ids=row.evidence_ids,
+                fingerprint=row.fingerprint,
+            )
+            try:
+                updated, change = IncidentService.transition(
+                    incident,
+                    request.status,
+                    changed_at=datetime.now(UTC),
+                    actor=request.actor,
+                    reason=request.reason,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            if not await repository.apply_transition(updated, change):
+                raise HTTPException(status_code=409, detail="incident changed concurrently")
+        return {"incident_id": updated.incident_id, "status": updated.status, "change_id": change.change_id}
 
     @app.get("/api/v1/pools", response_model=list[PoolDefinition])
     async def pools() -> list[PoolDefinition]:

@@ -506,6 +506,32 @@ class IncidentRepository:
         result = await self.session.scalars(statement)
         return list(result)
 
+    async def get(self, incident_id: str) -> IncidentRow | None:
+        return await self.session.get(IncidentRow, incident_id)
+
+    async def apply_transition(self, incident: Incident, change: IncidentStatusChange) -> bool:
+        """Persist a validated projection update and its audit event atomically."""
+
+        row = await self.session.get(IncidentRow, incident.incident_id)
+        if row is None or row.status != change.from_status.value:
+            return False
+        if await self.session.get(IncidentStatusChangeRow, change.change_id) is not None:
+            return False
+        row.status = change.to_status.value
+        self.session.add(
+            IncidentStatusChangeRow(
+                change_id=change.change_id,
+                incident_id=change.incident_id,
+                from_status=change.from_status.value,
+                to_status=change.to_status.value,
+                changed_at=change.changed_at,
+                actor=change.actor,
+                reason=change.reason,
+            )
+        )
+        await self.session.commit()
+        return True
+
     async def add_evidence(self, evidence: IncidentEvidence) -> bool:
         if await self.session.get(IncidentEvidenceRow, evidence.evidence_id) is not None:
             return False
