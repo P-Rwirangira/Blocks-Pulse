@@ -220,6 +220,26 @@ class EvidencePackage(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
 
 
+class AIClaim(BaseModel):
+    """One model-generated statement that must point to package evidence."""
+
+    text: str = Field(min_length=1)
+    evidence_ids: list[str] = Field(min_length=1)
+    numeric_value: float | None = None
+
+
+class AIInvestigationResponse(BaseModel):
+    """Structured, qualified AI output accepted by the presentation layer."""
+
+    incident_id: str
+    summary: str = Field(min_length=1)
+    claims: list[AIClaim] = Field(default_factory=list)
+    possible_explanations: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0, le=1)
+    unknowns: list[str] = Field(default_factory=list)
+    grounded: bool = False
+
+
 class ChainHealthSummary(BaseModel):
     """Named health summary for one configured chain."""
 

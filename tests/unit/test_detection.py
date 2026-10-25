@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from blockpulse.detectors import detect_rpc_anomaly
 from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus
 from blockpulse.incidents import IncidentService
+from blockpulse.incidents.application.ai_validation import AIResponseValidator
 from blockpulse.incidents.application.evidence import EvidencePackageBuilder
 from blockpulse.incidents.application.tools import ToolRequest, package_tool_registry
 
@@ -132,3 +133,28 @@ def test_read_only_tools_are_allow_listed_and_evidence_bearing() -> None:
         assert "not present" in str(error)
     else:
         raise AssertionError("unknown evidence must be rejected")
+
+
+def test_ai_response_validator_requires_grounded_claims_and_quality_disclosure() -> None:
+    score = AnomalyScore(
+        anomaly_id="score-3", detector_name="mad", detector_version="mad-v1",
+        entity_type="chain", entity_id="1", chain_id=1,
+        detected_at=datetime(2026, 9, 1, 10, 0, tzinfo=UTC), score=0.7,
+        severity=HealthStatus.WARNING, drivers=["rpc_error_rate"], feature_ids=["feature-3"],
+    )
+    incident = IncidentService().open_from_score(score)
+    package = EvidencePackageBuilder().build(
+        incident, score, [], generated_at=score.detected_at
+    )
+    from blockpulse.domain import AIClaim, AIInvestigationResponse
+
+    anomaly_evidence = package.evidence[0]
+    response = AIInvestigationResponse(
+        incident_id=incident.incident_id,
+        summary="The detector found an anomaly.",
+        claims=[AIClaim(text="The score was 0.7.", evidence_ids=[anomaly_evidence.evidence_id], numeric_value=0.7)],
+        confidence=0.8,
+        unknowns=["Root cause is unknown."],
+    )
+    validated = AIResponseValidator().validate(response, package)
+    assert validated.grounded is True
