@@ -158,3 +158,13 @@ def test_ai_response_validator_requires_grounded_claims_and_quality_disclosure()
     )
     validated = AIResponseValidator().validate(response, package)
     assert validated.grounded is True
+
+    invalid = response.model_copy(
+        update={"claims": [response.claims[0].model_copy(update={"numeric_value": 0.8})]}
+    )
+    try:
+        AIResponseValidator().validate(invalid, package)
+    except ValueError as error:
+        assert "numeric claim" in str(error)
+    else:
+        raise AssertionError("unsupported numerical claims must be rejected")
