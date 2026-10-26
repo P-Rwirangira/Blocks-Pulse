@@ -154,6 +154,25 @@ def create_app(database: Database | None = None) -> FastAPI:
             for row in rows
         ]
 
+    @app.get("/api/v1/incidents/{incident_id}")
+    async def incident_detail(incident_id: str) -> dict[str, object]:
+        async with app.state.database.sessions() as session:
+            row = await IncidentRepository(session).get(incident_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+        return {
+            "incident_id": row.incident_id,
+            "chain_id": row.chain_id,
+            "created_at": row.created_at,
+            "status": row.status,
+            "severity": row.severity,
+            "title": row.title,
+            "anomaly_event_id": row.anomaly_event_id,
+            "anomaly_score_id": row.anomaly_score_id,
+            "evidence_ids": row.evidence_ids,
+            "fingerprint": row.fingerprint,
+        }
+
     @app.get("/api/v1/incidents/{incident_id}/timeline")
     async def incident_timeline(incident_id: str) -> list[dict[str, object]]:
         async with app.state.database.sessions() as session:
