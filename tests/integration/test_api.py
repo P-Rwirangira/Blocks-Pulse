@@ -181,5 +181,9 @@ def test_incident_api_exposes_detail_evidence_timeline_and_transition() -> None:
     assert client.post(
         f"/api/v1/incidents/{incident_id}/transition",
         json={"status": "resolved", "actor": "test-operator"},
+    ).status_code == 200
+    assert client.post(
+        f"/api/v1/incidents/{incident_id}/transition",
+        json={"status": "investigating", "actor": "test-operator"},
     ).status_code == 409
     asyncio.run(database.close())
