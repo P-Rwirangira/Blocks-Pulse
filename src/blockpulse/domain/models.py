@@ -240,6 +240,19 @@ class AIInvestigationResponse(BaseModel):
     grounded: bool = False
 
 
+class AIInteractionAudit(BaseModel):
+    """Privacy-safe audit record for one bounded AI investigation."""
+
+    interaction_id: str
+    incident_id: str
+    model_version: str
+    prompt_hash: str
+    tool_calls: list[str] = Field(default_factory=list)
+    latency_ms: float = Field(ge=0)
+    validation_state: str
+    created_at: datetime
+
+
 class ChainHealthSummary(BaseModel):
     """Named health summary for one configured chain."""
 

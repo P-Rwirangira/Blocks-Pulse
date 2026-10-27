@@ -2,6 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 
 from blockpulse.domain import (
+    AIInteractionAudit,
     AnomalyScore,
     FeatureSnapshot,
     HealthMetric,
@@ -11,6 +12,7 @@ from blockpulse.domain import (
     RpcObservation,
 )
 from blockpulse.storage import (
+    AIInteractionAuditRepository,
     Database,
     HealthMetricRepository,
     FeatureRepository,
@@ -200,6 +202,27 @@ def test_incidents_evidence_and_history_are_idempotent() -> None:
             rows = await repository.recent(8453)
             assert rows[0].fingerprint == incident.fingerprint
             assert (await repository.evidence(incident.incident_id))[0].source_id == "feature-1"
+        await database.close()
+
+    asyncio.run(scenario())
+
+
+def test_ai_interaction_audits_are_secret_free_and_idempotent() -> None:
+    async def scenario() -> None:
+        database = Database("sqlite+aiosqlite:///:memory:")
+        await database.create_schema()
+        audit = AIInteractionAudit(
+            interaction_id="interaction-1", incident_id="incident-1", model_version="model-v1",
+            prompt_hash="a" * 64, tool_calls=["incident.summary"], latency_ms=42.0,
+            validation_state="grounded", created_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
+        )
+        async with database.sessions() as session:
+            repository = AIInteractionAuditRepository(session)
+            assert await repository.add(audit) is True
+            assert await repository.add(audit) is False
+            row = (await repository.recent("incident-1"))[0]
+            assert row.prompt_hash == "a" * 64
+            assert "secret" not in row.prompt_hash
         await database.close()
 
     asyncio.run(scenario())

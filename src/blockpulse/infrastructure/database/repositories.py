@@ -10,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from blockpulse.domain.models import (
     AnomalyScore,
+    AIInteractionAudit,
     FeatureSnapshot,
     HealthMetric,
     Incident,
@@ -210,6 +211,21 @@ class IncidentStatusChangeRow(Base):
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     actor: Mapped[str] = mapped_column(String(120))
     reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
+class AIInteractionAuditRow(Base):
+    """Privacy-safe AI invocation metadata; prompt contents are never stored."""
+
+    __tablename__ = "ai_interaction_audits"
+
+    interaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(String(64), index=True)
+    model_version: Mapped[str] = mapped_column(String(80), index=True)
+    prompt_hash: Mapped[str] = mapped_column(String(64))
+    tool_calls: Mapped[list] = mapped_column(JSON)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    validation_state: Mapped[str] = mapped_column(String(30), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 def observation_id(observation: RpcObservation) -> str:
@@ -580,6 +596,40 @@ class IncidentRepository:
             select(IncidentStatusChangeRow)
             .where(IncidentStatusChangeRow.incident_id == incident_id)
             .order_by(IncidentStatusChangeRow.changed_at.asc())
+        )
+        return list(result)
+
+
+class AIInteractionAuditRepository:
+    """Repository for immutable, secret-free AI audit records."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, audit: AIInteractionAudit) -> bool:
+        if await self.session.get(AIInteractionAuditRow, audit.interaction_id) is not None:
+            return False
+        self.session.add(
+            AIInteractionAuditRow(
+                interaction_id=audit.interaction_id,
+                incident_id=audit.incident_id,
+                model_version=audit.model_version,
+                prompt_hash=audit.prompt_hash,
+                tool_calls=audit.tool_calls,
+                latency_ms=audit.latency_ms,
+                validation_state=audit.validation_state,
+                created_at=audit.created_at,
+            )
+        )
+        await self.session.commit()
+        return True
+
+    async def recent(self, incident_id: str, limit: int = 100) -> list[AIInteractionAuditRow]:
+        result = await self.session.scalars(
+            select(AIInteractionAuditRow)
+            .where(AIInteractionAuditRow.incident_id == incident_id)
+            .order_by(AIInteractionAuditRow.created_at.desc())
+            .limit(limit)
         )
         return list(result)
 
