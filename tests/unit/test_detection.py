@@ -67,6 +67,16 @@ def test_score_incident_is_grouped_and_transition_is_audited() -> None:
     same_group = service.open_from_score(score.model_copy(update={"anomaly_id": "score-2"}))
 
     assert incident.incident_id == same_group.incident_id
+    later = service.open_from_score(
+        score.model_copy(update={"anomaly_id": "score-3", "detected_at": datetime(2026, 9, 1, 10, 16, tzinfo=UTC)})
+    )
+    assert later.incident_id != incident.incident_id
+    try:
+        service.open_from_score(score, dedupe_window_minutes=0)
+    except ValueError as error:
+        assert "positive" in str(error)
+    else:
+        raise AssertionError("invalid deduplication windows must be rejected")
     updated, change = service.transition(
         incident,
         IncidentStatus.INVESTIGATING,

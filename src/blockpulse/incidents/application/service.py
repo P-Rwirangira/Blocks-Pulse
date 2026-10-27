@@ -45,10 +45,10 @@ class IncidentService:
             evidence_ids=evidence_ids,
         )
 
-    def open_from_score(self, anomaly: AnomalyScore) -> Incident:
+    def open_from_score(self, anomaly: AnomalyScore, *, dedupe_window_minutes: int = 15) -> Incident:
         """Create the same incident for a persisted detector result every time."""
 
-        fingerprint = self.fingerprint(anomaly)
+        fingerprint = self.fingerprint(anomaly, dedupe_window_minutes=dedupe_window_minutes)
         incident_id = f"inc-{fingerprint[:20]}"
         return Incident(
             incident_id=incident_id,
@@ -64,8 +64,13 @@ class IncidentService:
         )
 
     @staticmethod
-    def fingerprint(anomaly: AnomalyScore) -> str:
-        """Build a stable grouping key independent of a detector run id."""
+    def fingerprint(anomaly: AnomalyScore, *, dedupe_window_minutes: int = 15) -> str:
+        """Build a stable grouping key for one explicit time window."""
+
+        if dedupe_window_minutes <= 0:
+            raise ValueError("dedupe_window_minutes must be positive")
+        timestamp_seconds = int(anomaly.detected_at.timestamp())
+        bucket = timestamp_seconds // (dedupe_window_minutes * 60)
 
         value = "|".join(
             (
@@ -74,6 +79,8 @@ class IncidentService:
                 anomaly.entity_id,
                 anomaly.severity.value,
                 ",".join(sorted(anomaly.drivers)),
+                str(dedupe_window_minutes),
+                str(bucket),
             )
         )
         return sha256(value.encode("utf-8")).hexdigest()
