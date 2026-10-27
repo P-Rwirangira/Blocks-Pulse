@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from blockpulse.detectors import detect_rpc_anomaly
-from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus
+from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus, RpcObservation
 from blockpulse.incidents import IncidentService
 from blockpulse.incidents.application.ai_validation import AIResponseValidator
 from blockpulse.incidents.application.evidence import EvidencePackageBuilder
@@ -121,6 +121,20 @@ def test_evidence_package_is_deterministic_and_warns_on_quality() -> None:
     assert len(package.evidence) == 2
     assert package.quality_warnings == ["Feature feature-1 is stale."]
     assert package.unknowns
+
+    enriched = builder.build(
+        incident,
+        score,
+        [],
+        generated_at=score.detected_at,
+        observations=[RpcObservation(
+            endpoint_name="base-a", chain_id=8453, observed_at=score.detected_at,
+            latency_ms=2000, success=False, error_type="timeout", latest_block_number=123,
+        )],
+        quality_warnings=["observation window is stale"],
+    )
+    assert {item.evidence_type for item in enriched.evidence} == {"anomaly_score", "rpc_observation"}
+    assert "observation window is stale" in enriched.quality_warnings
 
 
 def test_read_only_tools_are_allow_listed_and_evidence_bearing() -> None:

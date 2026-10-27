@@ -4,7 +4,15 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Sequence
 
-from blockpulse.domain.models import AnomalyScore, EvidencePackage, FeatureSnapshot, Incident, IncidentEvidence
+from blockpulse.domain.models import (
+    AnomalyScore,
+    EvidencePackage,
+    FeatureSnapshot,
+    Incident,
+    IncidentEvidence,
+    PoolEvent,
+    RpcObservation,
+)
 
 
 class EvidencePackageBuilder:
@@ -17,6 +25,9 @@ class EvidencePackageBuilder:
         features: Sequence[FeatureSnapshot],
         *,
         generated_at: datetime,
+        observations: Sequence[RpcObservation] = (),
+        pool_events: Sequence[PoolEvent] = (),
+        quality_warnings: Sequence[str] = (),
     ) -> EvidencePackage:
         evidence = [
             IncidentEvidence(
@@ -30,7 +41,7 @@ class EvidencePackageBuilder:
                 payload=anomaly.model_dump(mode="json"),
             )
         ]
-        warnings: list[str] = []
+        warnings: list[str] = list(quality_warnings)
         for feature in sorted(features, key=lambda item: (item.measured_at, item.feature_id)):
             if feature.quality_status != "valid":
                 warnings.append(f"Feature {feature.feature_id} is {feature.quality_status}.")
@@ -47,6 +58,32 @@ class EvidencePackageBuilder:
             )
         if not features:
             warnings.append("No feature snapshots were available for this incident.")
+        for observation in sorted(observations, key=lambda item: (item.observed_at, item.endpoint_name)):
+            source_id = self._observation_id(observation)
+            evidence.append(
+                IncidentEvidence(
+                    evidence_id=self._evidence_id(incident.incident_id, "observation", source_id),
+                    incident_id=incident.incident_id,
+                    evidence_type="rpc_observation",
+                    source_id=source_id,
+                    observed_at=observation.observed_at,
+                    summary=(f"{observation.endpoint_name} {'succeeded' if observation.success else 'failed'} "
+                             f"in {observation.latency_ms}ms"),
+                    payload=observation.model_dump(mode="json"),
+                )
+            )
+        for event in sorted(pool_events, key=lambda item: (item.occurred_at, item.event_id)):
+            evidence.append(
+                IncidentEvidence(
+                    evidence_id=self._evidence_id(incident.incident_id, "pool_event", event.event_id),
+                    incident_id=incident.incident_id,
+                    evidence_type="pool_event",
+                    source_id=event.event_id,
+                    observed_at=event.occurred_at,
+                    summary=f"{event.event_type} on pool {event.pool_id} at block {event.block_number}",
+                    payload=event.model_dump(mode="json"),
+                )
+            )
         return EvidencePackage(
             package_id=self._package_id(incident.incident_id, evidence),
             incident_id=incident.incident_id,
@@ -67,3 +104,15 @@ class EvidencePackageBuilder:
     def _package_id(incident_id: str, evidence: Sequence[IncidentEvidence]) -> str:
         source_ids = ",".join(item.source_id for item in evidence)
         return "pkg-" + sha256(f"{incident_id}|{source_ids}".encode()).hexdigest()[:24]
+
+    @staticmethod
+    def _observation_id(observation: RpcObservation) -> str:
+        value = "|".join(
+            (
+                observation.endpoint_name,
+                str(observation.chain_id),
+                observation.observed_at.isoformat(),
+                str(observation.attempt),
+            )
+        )
+        return sha256(value.encode()).hexdigest()
