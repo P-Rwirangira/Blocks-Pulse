@@ -46,6 +46,11 @@ numeric claim must match a cited `value` or `score`, and responses must disclose
 quality warnings. An accepted response is marked `grounded=True`; this flag is a
 validation result, not a claim that the explanation proves root cause.
 
+`AIInteractionAudit` stores only a prompt hash, model version, tool names, latency,
+validation state, incident ID, and timestamp. Prompt contents and secrets are not
+stored. `AIValidationEvaluator` runs deterministic regression cases for valid
+citations, missing evidence, quality disclosure, and unsupported numeric claims.
+
 ## API surface
 
 - `GET /api/v1/incidents?chain_id=&limit=` lists incident projections.

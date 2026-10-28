@@ -4,6 +4,7 @@ from blockpulse.detectors import detect_rpc_anomaly
 from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus, RpcObservation
 from blockpulse.incidents import IncidentService
 from blockpulse.incidents.application.ai_validation import AIResponseValidator
+from blockpulse.incidents.application.ai_evaluation import AIValidationCase, AIValidationEvaluator
 from blockpulse.incidents.application.evidence import EvidencePackageBuilder
 from blockpulse.incidents.application.tools import ToolRequest, package_tool_registry
 
@@ -192,3 +193,32 @@ def test_ai_response_validator_requires_grounded_claims_and_quality_disclosure()
         assert "numeric claim" in str(error)
     else:
         raise AssertionError("unsupported numerical claims must be rejected")
+
+
+def test_ai_validation_evaluator_covers_unsafe_response_cases() -> None:
+    score = AnomalyScore(
+        anomaly_id="score-4", detector_name="mad", detector_version="mad-v1",
+        entity_type="chain", entity_id="1", chain_id=1,
+        detected_at=datetime(2026, 9, 1, 10, 0, tzinfo=UTC), score=0.7,
+        severity=HealthStatus.WARNING, drivers=["rpc_error_rate"], feature_ids=["feature-4"],
+    )
+    incident = IncidentService().open_from_score(score)
+    package = EvidencePackageBuilder().build(incident, score, [], generated_at=score.detected_at)
+    from blockpulse.domain import AIClaim, AIInvestigationResponse
+
+    evidence_id = package.evidence[0].evidence_id
+    valid = AIInvestigationResponse(
+        incident_id=incident.incident_id, summary="Observed anomaly.", confidence=0.8,
+        unknowns=["Root cause unknown."],
+        claims=[AIClaim(text="Score is 0.7", evidence_ids=[evidence_id], numeric_value=0.7)],
+    )
+    missing_citation = valid.model_copy(
+        update={"claims": [AIClaim(text="Unsupported", evidence_ids=["missing"])]}
+    )
+    result = AIValidationEvaluator().evaluate(package, [
+        AIValidationCase(name="valid", response=valid, expected_valid=True),
+        AIValidationCase(name="missing-citation", response=missing_citation, expected_valid=False),
+    ])
+    assert result.total == 2
+    assert result.passed == 2
+    assert result.failed_cases == []
