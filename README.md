@@ -61,5 +61,6 @@ Charts in the prototype are illustrative demo telemetry. They are not live measu
 
 Phase 5 now provides the first end-to-end ML foundation: traceable features,
 deterministic baselines, a seeded multivariate detector, persisted anomaly scores,
-and time-aware evaluation records. Phase 6 can build incident lifecycle and
-evidence packaging on these outputs.
+and time-aware evaluation records. Phase 6 now adds deterministic incident
+lifecycle, evidence packages, read-only investigation tools, grounded AI
+validation, operator APIs, and privacy-safe AI audit records.

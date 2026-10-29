@@ -54,15 +54,20 @@ citations, missing evidence, quality disclosure, and unsupported numeric claims.
 ## API surface
 
 - `GET /api/v1/incidents?chain_id=&limit=` lists incident projections.
+- `GET /api/v1/incidents/{incident_id}` returns one incident detail projection.
 - `GET /api/v1/incidents/{incident_id}/evidence` returns typed evidence.
 - `GET /api/v1/incidents/{incident_id}/timeline` returns status history.
 - `POST /api/v1/incidents/{incident_id}/transition` applies one validated status change.
 
-The incident tables are introduced by migration `0009_incidents` and are also
-included in the test database metadata for isolated integration tests.
+The incident tables are introduced by migration `0009_incidents`; privacy-safe AI
+audit records are introduced by migration `0010_ai_interaction_audits`. Both are
+included in the test database metadata, and the complete SQLite migration chain
+is tested through upgrade, rollback, and re-upgrade.
 
 ## Verification
 
-Run `python -m pytest tests -q`. The suite covers deterministic grouping,
-transition rejection, evidence idempotency, package quality warnings, allow-listed
-tools, unsupported evidence references, and unsupported numerical AI claims.
+Run `python -m pytest tests -q`. The suite covers deterministic grouping and time
+windows, transition rejection, API lifecycle behavior, evidence idempotency,
+raw observation evidence, package quality warnings, allow-listed tools, unsupported
+evidence references, unsupported numerical AI claims, AI audit persistence, and
+SQLite migration rollback.
