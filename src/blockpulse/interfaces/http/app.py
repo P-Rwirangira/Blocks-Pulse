@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -30,6 +31,7 @@ from blockpulse.infrastructure.database.repositories import (
 )
 from blockpulse.liquidity.application.service import PoolService
 from blockpulse.incidents.application.service import IncidentService
+from blockpulse.infrastructure.observability import MetricsRegistry
 
 
 class IncidentTransitionRequest(BaseModel):
@@ -40,16 +42,35 @@ class IncidentTransitionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
 
-def create_app(database: Database | None = None) -> FastAPI:
+def create_app(
+    database: Database | None = None,
+    metrics: MetricsRegistry | None = None,
+) -> FastAPI:
     """Create the API application with an injectable database dependency."""
 
     settings = get_settings()
     app = FastAPI(title="BlockPulse API", version="0.1.0")
     app.state.database = database or Database(settings.database_url)
+    app.state.metrics = metrics or MetricsRegistry()
+
+    @app.middleware("http")
+    async def collect_http_metrics(request, call_next):
+        if request.url.path == "/metrics":
+            return await call_next(request)
+        started = datetime.now(UTC)
+        response = await call_next(request)
+        route = getattr(request.scope.get("route"), "path", request.url.path)
+        duration = (datetime.now(UTC) - started).total_seconds()
+        app.state.metrics.observe_http(request.method, route, response.status_code, duration)
+        return response
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:
+        return Response(content=app.state.metrics.render(), media_type="text/plain; version=0.0.4")
 
     @app.get("/readyz")
     async def readyz() -> dict[str, str]:
@@ -101,7 +122,9 @@ def create_app(database: Database | None = None) -> FastAPI:
         async with app.state.database.sessions() as session:
             service = HealthService(ObservationRepository(session))
             try:
-                return await service.current(chain_id, settings.health_window_minutes)
+                metric = await service.current(chain_id, settings.health_window_minutes)
+                app.state.metrics.set_chain_health(chain_id, metric.status.value)
+                return metric
             except LookupError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
 
