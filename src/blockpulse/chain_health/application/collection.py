@@ -36,6 +36,11 @@ class CollectionService:
 
         observations = await self.collector.collect_all(observed_at)
         inserted = await self.repository.add_many(observations)
+        if self.metrics is not None:
+            for observation in observations:
+                self.metrics.observe_rpc(
+                    observation.chain_id, observation.success, observation.latency_ms
+                )
         return observations, inserted
 
 
@@ -48,6 +53,7 @@ class MultiChainCollectionService:
         repository: ObservationRepository,
         retries: int = 1,
         retry_backoff_seconds: float = 0.5,
+        metrics: MetricsSink | None = None,
     ) -> None:
         self.collectors = {
             chain: RpcCollector(providers, retries, retry_backoff_seconds)
@@ -55,6 +61,7 @@ class MultiChainCollectionService:
         }
         self.repository = repository
         self.stats = CollectionStats()
+        self.metrics = metrics
 
     async def collect_once(
         self, observed_at: datetime
