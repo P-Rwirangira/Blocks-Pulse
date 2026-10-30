@@ -1,8 +1,16 @@
 """Structured counters for collection-cycle operations."""
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from blockpulse.domain.models import RpcObservation
+
+
+class MetricsSink(Protocol):
+    """Application-facing metrics port implemented by infrastructure adapters."""
+
+    def observe_rpc(self, chain_id: int, success: bool, latency_ms: float) -> None:
+        """Record one RPC observation."""
 
 
 @dataclass(slots=True)

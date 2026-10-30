@@ -31,6 +31,14 @@ class FakeRepository:
         return len(observations)
 
 
+class MetricsSpy:
+    def __init__(self) -> None:
+        self.values: list[tuple[int, bool, float]] = []
+
+    def observe_rpc(self, chain_id: int, success: bool, latency_ms: float) -> None:
+        self.values.append((chain_id, success, latency_ms))
+
+
 def test_collection_service_persists_one_cycle() -> None:
     repository = FakeRepository()
     service = CollectionService([FakeProvider()], repository)
@@ -44,14 +52,18 @@ def test_collection_service_persists_one_cycle() -> None:
 def test_multi_chain_service_collects_each_chain() -> None:
     async def scenario() -> None:
         repository = FakeRepository()
+        metrics = MetricsSpy()
         chains = {
             ChainDefinition("base", 8453, ("https://base.example",)): [FakeProvider()],
             ChainDefinition("arbitrum", 42161, ("https://arb.example",)): [FakeProvider()],
         }
-        results, inserted = await MultiChainCollectionService(chains, repository).collect_once(
+        results, inserted = await MultiChainCollectionService(
+            chains, repository, metrics=metrics
+        ).collect_once(
             datetime.now(UTC)
         )
         assert set(results) == {8453, 42161}
         assert inserted == 2
+        assert len(metrics.values) == 2
 
     asyncio.run(scenario())

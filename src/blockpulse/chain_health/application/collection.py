@@ -11,7 +11,7 @@ from blockpulse.domain.models import RpcObservation
 from blockpulse.infrastructure.config.chains import ChainDefinition
 from blockpulse.infrastructure.database.repositories import ObservationRepository
 from blockpulse.shared.ports import RpcProvider
-from blockpulse.chain_health.application.telemetry import CollectionStats
+from blockpulse.chain_health.application.telemetry import CollectionStats, MetricsSink
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,11 @@ class CollectionService:
         repository: ObservationRepository,
         retries: int = 1,
         retry_backoff_seconds: float = 0.5,
+        metrics: MetricsSink | None = None,
     ) -> None:
         self.collector = RpcCollector(providers, retries, retry_backoff_seconds)
         self.repository = repository
+        self.metrics = metrics
 
     async def collect_once(self, observed_at: datetime) -> tuple[list[RpcObservation], int]:
         """Collect all configured endpoints and persist the observations."""
@@ -70,5 +72,10 @@ class MultiChainCollectionService:
         observations = [item for values in observations_by_chain.values() for item in values]
         inserted = await self.repository.add_many(observations)
         self.stats.record(observations, inserted, (time.perf_counter() - started) * 1000)
+        if self.metrics is not None:
+            for observation in observations:
+                self.metrics.observe_rpc(
+                    observation.chain_id, observation.success, observation.latency_ms
+                )
         logger.info("collection_cycle_completed", extra=self.stats.snapshot())
         return observations_by_chain, inserted
