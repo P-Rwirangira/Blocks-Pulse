@@ -16,12 +16,25 @@ class Detector(Protocol):
         """Score current vectors."""
 
 
+class AnomalyMetricsSink(Protocol):
+    """Application port for anomaly telemetry."""
+
+    def observe_anomaly(self, detector: str, severity: str) -> None:
+        """Record one detector output."""
+
+
 class AnomalyDetectionService:
     """Coordinate detector execution and idempotent anomaly persistence."""
 
-    def __init__(self, detector: Detector, repository: object) -> None:
+    def __init__(
+        self,
+        detector: Detector,
+        repository: object,
+        metrics: AnomalyMetricsSink | None = None,
+    ) -> None:
         self.detector = detector
         self.repository = repository
+        self.metrics = metrics
 
     async def run(
         self,
@@ -33,4 +46,7 @@ class AnomalyDetectionService:
         self.detector.fit(training)
         anomalies = self.detector.detect(current)
         inserted = await self.repository.add_many(anomalies)
+        if self.metrics is not None:
+            for anomaly in anomalies:
+                self.metrics.observe_anomaly(anomaly.detector_name, anomaly.severity.value)
         return anomalies, inserted

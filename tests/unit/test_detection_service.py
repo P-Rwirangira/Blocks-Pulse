@@ -36,6 +36,14 @@ class FakeRepository:
         return len(anomalies)
 
 
+class MetricsSpy:
+    def __init__(self) -> None:
+        self.values: list[tuple[str, str]] = []
+
+    def observe_anomaly(self, detector: str, severity: str) -> None:
+        self.values.append((detector, severity))
+
+
 def test_detection_service_fits_scores_and_persists() -> None:
     vector = FeatureVector(
         vector_id="v1",
@@ -48,9 +56,11 @@ def test_detection_service_fits_scores_and_persists() -> None:
     )
 
     async def scenario() -> None:
+        metrics = MetricsSpy()
         anomalies, inserted = await AnomalyDetectionService(
-            FakeDetector(), FakeRepository()
+            FakeDetector(), FakeRepository(), metrics=metrics
         ).run([vector], [vector])
         assert len(anomalies) == inserted == 1
+        assert metrics.values == [("fake", "critical")]
 
     asyncio.run(scenario())

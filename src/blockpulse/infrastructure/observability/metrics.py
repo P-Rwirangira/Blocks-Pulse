@@ -78,6 +78,12 @@ class MetricsRegistry:
         for severity, count in counts.items():
             self.active_incidents.labels(severity).set(count)
 
+    def observe_anomaly(self, detector: str, severity: str) -> None:
+        self.anomalies.labels(detector, severity).inc()
+
+    def set_data_quality(self, scope: str, valid: bool) -> None:
+        self.data_quality.labels(scope).set(1 if valid else 0)
+
     def render(self) -> bytes:
         return generate_latest(self.registry)
 
