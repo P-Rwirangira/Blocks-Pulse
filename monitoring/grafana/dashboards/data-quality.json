@@ -1,0 +1,11 @@
+{
+  "uid": "blockpulse-quality",
+  "title": "BlockPulse Data Quality",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {"from": "now-24h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Quality State", "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0}, "targets": [{"expr": "min(blockpulse_data_quality_status)", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []}},
+    {"id": 2, "type": "timeseries", "title": "Quality by Scope", "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0}, "targets": [{"expr": "blockpulse_data_quality_status", "legendFormat": "{{scope}}", "refId": "A"}]}
+  ]
+}

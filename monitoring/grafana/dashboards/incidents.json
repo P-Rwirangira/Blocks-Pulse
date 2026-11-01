@@ -1,0 +1,12 @@
+{
+  "uid": "blockpulse-incidents",
+  "title": "BlockPulse Incidents",
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": {"from": "now-24h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Active Incidents", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "blockpulse_active_incidents", "legendFormat": "{{severity}}", "refId": "A"}]},
+    {"id": 2, "type": "timeseries", "title": "Incident-Causing Anomalies", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum by (detector, severity) (increase(blockpulse_anomalies_total[1h]))", "legendFormat": "{{detector}} {{severity}}", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}},
+    {"id": 3, "type": "stat", "title": "HTTP 5xx Rate", "gridPos": {"h": 5, "w": 8, "x": 0, "y": 8}, "targets": [{"expr": "sum(rate(blockpulse_http_requests_total{status=~\"5..\"}[5m]))", "refId": "A"}]}
+  ]
+}
