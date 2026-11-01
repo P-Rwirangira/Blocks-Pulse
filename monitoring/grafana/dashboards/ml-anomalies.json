@@ -6,6 +6,6 @@
   "time": {"from": "now-24h", "to": "now"},
   "panels": [
     {"id": 1, "type": "timeseries", "title": "Detector Output Rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum by (detector) (rate(blockpulse_anomalies_total[15m]))", "legendFormat": "{{detector}}", "refId": "A"}]},
-    {"id": 2, "type": "timeseries", "title": "Anomaly Severity", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum by (severity) (increase(blockpulse_anomalies_total[1h]))", "legendFormat": "{{severity}}", "refId": "A"}]
+    {"id": 2, "type": "timeseries", "title": "Anomaly Severity", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum by (severity) (increase(blockpulse_anomalies_total[1h]))", "legendFormat": "{{severity}}", "refId": "A"}]}
   ]
 }
