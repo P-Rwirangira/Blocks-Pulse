@@ -58,6 +58,18 @@ def test_readiness_endpoint_checks_database() -> None:
     asyncio.run(database.close())
 
 
+def test_metrics_endpoint_exposes_prometheus_text() -> None:
+    database = Database("sqlite+aiosqlite:///:memory:")
+    asyncio.run(database.create_schema())
+    client = TestClient(create_app(database))
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "blockpulse_http_requests_total" in response.text
+    asyncio.run(database.close())
+
+
 def test_endpoint_health_route_returns_provider_scores() -> None:
     async def seed(database: Database) -> None:
         await database.create_schema()

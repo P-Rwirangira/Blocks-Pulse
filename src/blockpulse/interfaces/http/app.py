@@ -143,6 +143,11 @@ def create_app(
 
         async with app.state.database.sessions() as session:
             rows = await IncidentRepository(session).recent(chain_id=chain_id, limit=limit)
+        active = [row for row in rows if row.status not in {"resolved", "suppressed"}]
+        counts: dict[str, int] = {}
+        for row in active:
+            counts[row.severity] = counts.get(row.severity, 0) + 1
+        app.state.metrics.set_active_incidents(counts)
         return [
             {
                 "incident_id": row.incident_id,
