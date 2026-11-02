@@ -54,6 +54,7 @@ The collector can run any configured subset of the three supported chains. One c
 - `docs/SELF_IMPROVING.md` - process for turning failures into durable controls.
 - `BlockPulse_Project_Prototype_Expanded.pdf` - full visual product and system blueprint.
 - `docs/PHASE5_ML_RUNBOOK.md` - feature, detector, evaluation, and ML operating rules.
+- `docs/PHASE7_GRAFANA_RUNBOOK.md` - Prometheus metrics, Grafana dashboards, and local operations.
 
 ## Prototype data note
 
@@ -63,4 +64,6 @@ Phase 5 now provides the first end-to-end ML foundation: traceable features,
 deterministic baselines, a seeded multivariate detector, persisted anomaly scores,
 and time-aware evaluation records. Phase 6 now adds deterministic incident
 lifecycle, evidence packages, read-only investigation tools, grounded AI
-validation, operator APIs, and privacy-safe AI audit records.
+validation, operator APIs, and privacy-safe AI audit records. Phase 7 adds a
+Grafana-only observability layer with Prometheus metrics and reproducible local
+dashboard provisioning; no custom frontend is required.
