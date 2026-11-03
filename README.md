@@ -66,4 +66,5 @@ and time-aware evaluation records. Phase 6 now adds deterministic incident
 lifecycle, evidence packages, read-only investigation tools, grounded AI
 validation, operator APIs, and privacy-safe AI audit records. Phase 7 adds a
 Grafana-only observability layer with Prometheus metrics and reproducible local
-dashboard provisioning; no custom frontend is required.
+dashboard provisioning for chain health, liquidity, incidents, ML, and data
+quality; no custom frontend is required.

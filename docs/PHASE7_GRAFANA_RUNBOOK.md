@@ -30,6 +30,7 @@ and dashboards automatically.
 | Chain Health | Chain and endpoint reliability | health severity, RPC outcomes, API latency |
 | Incidents | Operator workload | active incidents, anomaly rate, HTTP failures |
 | ML Anomalies | Detector behavior | detector rate and severity distribution |
+| Liquidity | Pool ingestion operations | pool events, collection cycles, collection duration |
 | Data Quality | Trustworthiness of derived views | valid/degraded quality state by scope |
 
 Dashboard JSON is provisioned from `monitoring/grafana/dashboards/` and must stay
@@ -52,6 +53,10 @@ Important metrics include:
 - `blockpulse_anomalies_total`
 - `blockpulse_active_incidents`
 - `blockpulse_data_quality_status`
+- `blockpulse_pool_events_total`
+- `blockpulse_collection_cycles_total`
+- `blockpulse_collection_duration_seconds`
+- `blockpulse_ai_validation_total`
 
 ## Verification
 
