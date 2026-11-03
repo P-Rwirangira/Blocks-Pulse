@@ -59,6 +59,22 @@ class MetricsRegistry:
             ("scope",),
             registry=self.registry,
         )
+        self.collection_cycles = Counter(
+            "blockpulse_collection_cycles_total",
+            "Completed multi-chain collection cycles",
+            registry=self.registry,
+        )
+        self.collection_duration = Histogram(
+            "blockpulse_collection_duration_seconds",
+            "Collection cycle duration in seconds",
+            registry=self.registry,
+        )
+        self.pool_events = Counter(
+            "blockpulse_pool_events_total",
+            "Normalized pool events collected",
+            ("pool_id", "event_type"),
+            registry=self.registry,
+        )
 
     def observe_http(self, method: str, route: str, status: int, duration_seconds: float) -> None:
         self.http_requests.labels(method, route, str(status)).inc()
@@ -83,6 +99,13 @@ class MetricsRegistry:
 
     def set_data_quality(self, scope: str, valid: bool) -> None:
         self.data_quality.labels(scope).set(1 if valid else 0)
+
+    def observe_collection(self, observation_count: int, duration_ms: float) -> None:
+        self.collection_cycles.inc()
+        self.collection_duration.observe(duration_ms / 1000)
+
+    def observe_pool_event(self, pool_id: str, event_type: str) -> None:
+        self.pool_events.labels(pool_id, event_type).inc()
 
     def render(self) -> bytes:
         return generate_latest(self.registry)

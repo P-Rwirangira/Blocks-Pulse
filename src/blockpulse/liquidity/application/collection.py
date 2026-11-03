@@ -6,6 +6,14 @@ from blockpulse.domain.models import PoolDefinition, PoolEvent
 from blockpulse.infrastructure.database.repositories import PoolCursorRepository, PoolEventRepository
 from blockpulse.liquidity.adapters.uniswap.v2.decoder import PoolLogCollector
 from blockpulse.liquidity.adapters.uniswap.v3.decoder import V3PoolLogCollector
+from typing import Protocol
+
+
+class PoolMetricsSink(Protocol):
+    """Application-facing port for pool collection telemetry."""
+
+    def observe_pool_event(self, pool_id: str, event_type: str) -> None:
+        """Record one normalized pool event."""
 
 
 class PoolCollectionService:
@@ -17,11 +25,13 @@ class PoolCollectionService:
         events: PoolEventRepository,
         cursors: PoolCursorRepository,
         confirmations: int = 2,
+        metrics: PoolMetricsSink | None = None,
     ) -> None:
         self.provider = provider
         self.events = events
         self.cursors = cursors
         self.confirmations = confirmations
+        self.metrics = metrics
 
     async def collect_once(
         self, pool: PoolDefinition, observed_at: datetime, target_block: int | None = None
@@ -50,5 +60,8 @@ class PoolCollectionService:
                 pool, from_block, confirmed_to, observed_at
             )
         inserted = await self.events.add_many(events)
+        if self.metrics is not None:
+            for event in events:
+                self.metrics.observe_pool_event(event.pool_id, event.event_type)
         await self.cursors.advance(pool.pool_id, confirmed_to)
         return events, inserted

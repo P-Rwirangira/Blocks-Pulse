@@ -41,6 +41,7 @@ class CollectionService:
                 self.metrics.observe_rpc(
                     observation.chain_id, observation.success, observation.latency_ms
                 )
+            self.metrics.observe_collection(len(observations), 0)
         return observations, inserted
 
 
@@ -84,5 +85,6 @@ class MultiChainCollectionService:
                 self.metrics.observe_rpc(
                     observation.chain_id, observation.success, observation.latency_ms
                 )
+            self.metrics.observe_collection(len(observations), (time.perf_counter() - started) * 1000)
         logger.info("collection_cycle_completed", extra=self.stats.snapshot())
         return observations_by_chain, inserted

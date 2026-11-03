@@ -12,6 +12,9 @@ class MetricsSink(Protocol):
     def observe_rpc(self, chain_id: int, success: bool, latency_ms: float) -> None:
         """Record one RPC observation."""
 
+    def observe_collection(self, observation_count: int, duration_ms: float) -> None:
+        """Record one completed collection cycle."""
+
 
 @dataclass(slots=True)
 class CollectionStats:

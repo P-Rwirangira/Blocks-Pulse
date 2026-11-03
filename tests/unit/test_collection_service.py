@@ -34,9 +34,13 @@ class FakeRepository:
 class MetricsSpy:
     def __init__(self) -> None:
         self.values: list[tuple[int, bool, float]] = []
+        self.cycles: list[tuple[int, float]] = []
 
     def observe_rpc(self, chain_id: int, success: bool, latency_ms: float) -> None:
         self.values.append((chain_id, success, latency_ms))
+
+    def observe_collection(self, observation_count: int, duration_ms: float) -> None:
+        self.cycles.append((observation_count, duration_ms))
 
 
 def test_collection_service_persists_one_cycle() -> None:
@@ -65,5 +69,6 @@ def test_multi_chain_service_collects_each_chain() -> None:
         assert set(results) == {8453, 42161}
         assert inserted == 2
         assert len(metrics.values) == 2
+        assert metrics.cycles == [(2, metrics.cycles[0][1])]
 
     asyncio.run(scenario())
