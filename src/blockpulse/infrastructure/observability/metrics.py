@@ -75,6 +75,12 @@ class MetricsRegistry:
             ("pool_id", "event_type"),
             registry=self.registry,
         )
+        self.ai_validation = Counter(
+            "blockpulse_ai_validation_total",
+            "AI response validation outcomes",
+            ("state",),
+            registry=self.registry,
+        )
 
     def observe_http(self, method: str, route: str, status: int, duration_seconds: float) -> None:
         self.http_requests.labels(method, route, str(status)).inc()
@@ -106,6 +112,9 @@ class MetricsRegistry:
 
     def observe_pool_event(self, pool_id: str, event_type: str) -> None:
         self.pool_events.labels(pool_id, event_type).inc()
+
+    def observe_ai_validation(self, state: str) -> None:
+        self.ai_validation.labels(state).inc()
 
     def render(self) -> bytes:
         return generate_latest(self.registry)

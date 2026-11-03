@@ -3,6 +3,7 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 from datetime import UTC, datetime, timedelta
 
 from blockpulse.domain.models import RpcObservation
@@ -24,6 +25,23 @@ class ObservationQualityReport:
         """Return whether observations are suitable for downstream metrics."""
 
         return not self.issues
+
+
+class QualityMetricsSink(Protocol):
+    """Application port for data-quality telemetry."""
+
+    def set_data_quality(self, scope: str, valid: bool) -> None:
+        """Publish the latest quality state."""
+
+
+def publish_quality_metrics(
+    report: ObservationQualityReport,
+    scope: str,
+    metrics: QualityMetricsSink,
+) -> None:
+    """Publish quality state without coupling checks to Prometheus."""
+
+    metrics.set_data_quality(scope, report.valid)
 
 
 def assess_observation_quality(
