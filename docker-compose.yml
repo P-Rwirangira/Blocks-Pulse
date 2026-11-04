@@ -26,6 +26,19 @@ services:
       postgres:
         condition: service_healthy
 
+  blockpulse-collector:
+    build: .
+    command: ["blockpulse-collect-loop"]
+    environment:
+      BLOCKPULSE_DATABASE_URL: postgresql+psycopg://blockpulse:blockpulse@postgres:5432/blockpulse
+      BLOCKPULSE_ENVIRONMENT: development
+      BLOCKPULSE_METRICS_PORT: 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   prometheus:
     image: prom/prometheus:v2.54.1
     ports:
@@ -34,6 +47,7 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       - blockpulse
+      - blockpulse-collector
 
   grafana:
     image: grafana/grafana:11.2.0

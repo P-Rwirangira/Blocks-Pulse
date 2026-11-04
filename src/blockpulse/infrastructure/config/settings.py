@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     collection_interval_seconds: float = Field(default=30.0, gt=0)
     rpc_confirmations: int = Field(default=2, ge=0)
     health_window_minutes: int = Field(default=15, gt=0)
+    metrics_port: int = Field(default=8001, gt=0, le=65535)
     pools_json: str = "[]"
 
 

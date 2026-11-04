@@ -7,12 +7,14 @@ from blockpulse.infrastructure.config.chains import enabled_chains, providers_fo
 from blockpulse.infrastructure.config.settings import get_settings
 from blockpulse.infrastructure.database.repositories import Database, ObservationRepository
 from blockpulse.infrastructure.database.repositories import ObservationQualityRepository
-from blockpulse.chain_health.application.quality import assess_observation_quality
+from blockpulse.chain_health.application.quality import assess_observation_quality, publish_quality_metrics
 from blockpulse.chain_health.application.collection import MultiChainCollectionService
 from blockpulse.chain_health.application.worker import CollectionWorker
+from blockpulse.infrastructure.observability import MetricsRegistry
+from prometheus_client.exposition import start_http_server
 
 
-async def collect_once() -> int:
+async def collect_once(metrics: MetricsRegistry | None = None) -> int:
     """Collect the configured Base RPC endpoints once."""
 
     settings = get_settings()
@@ -31,12 +33,15 @@ async def collect_once() -> int:
                 ObservationRepository(session),
                 retries=settings.rpc_retries,
                 retry_backoff_seconds=settings.rpc_retry_backoff_seconds,
+                metrics=metrics,
             ).collect_once(datetime.now(UTC))
             quality = assess_observation_quality(
                 [item for values in observations_by_chain.values() for item in values],
                 checked_at=datetime.now(UTC),
                 expected_interval=timedelta(seconds=settings.collection_interval_seconds),
             )
+            if metrics is not None:
+                publish_quality_metrics(quality, "rpc_observations", metrics)
             await ObservationQualityRepository(session).add(quality)
         observations = [item for values in observations_by_chain.values() for item in values]
         successful = sum(item.success for item in observations)
@@ -59,7 +64,13 @@ async def collect_forever() -> None:
     """Run collection cycles until the process is cancelled."""
 
     settings = get_settings()
-    await CollectionWorker(collect_once, settings.collection_interval_seconds).run()
+    metrics = MetricsRegistry()
+    start_http_server(settings.metrics_port, registry=metrics.registry)
+
+    async def collect_with_metrics() -> int:
+        return await collect_once(metrics)
+
+    await CollectionWorker(collect_with_metrics, settings.collection_interval_seconds).run()
 
 
 def worker_main() -> None:
