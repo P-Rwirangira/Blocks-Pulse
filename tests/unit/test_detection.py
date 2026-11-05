@@ -7,6 +7,7 @@ from blockpulse.incidents.application.ai_validation import AIResponseValidator
 from blockpulse.incidents.application.ai_evaluation import AIValidationCase, AIValidationEvaluator
 from blockpulse.incidents.application.evidence import EvidencePackageBuilder
 from blockpulse.incidents.application.tools import ToolRequest, package_tool_registry
+from blockpulse.infrastructure.observability import MetricsRegistry
 
 
 def test_detector_returns_drivers_for_latency_anomaly() -> None:
@@ -215,10 +216,12 @@ def test_ai_validation_evaluator_covers_unsafe_response_cases() -> None:
     missing_citation = valid.model_copy(
         update={"claims": [AIClaim(text="Unsupported", evidence_ids=["missing"])]}
     )
-    result = AIValidationEvaluator().evaluate(package, [
+    metrics = MetricsRegistry()
+    result = AIValidationEvaluator(metrics=metrics).evaluate(package, [
         AIValidationCase(name="valid", response=valid, expected_valid=True),
         AIValidationCase(name="missing-citation", response=missing_citation, expected_valid=False),
     ])
     assert result.total == 2
     assert result.passed == 2
     assert result.failed_cases == []
+    assert "blockpulse_ai_validation_total" in metrics.render().decode()

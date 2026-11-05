@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from blockpulse.domain.models import AIInvestigationResponse, EvidencePackage
 
 from .ai_validation import AIResponseValidator
+from .ai_validation import AIValidationMetricsSink
 
 
 class AIValidationCase(BaseModel):
@@ -28,8 +29,13 @@ class AIValidationResult(BaseModel):
 class AIValidationEvaluator:
     """Run safety cases without invoking an LLM or mutating application state."""
 
-    def __init__(self, validator: AIResponseValidator | None = None) -> None:
+    def __init__(
+        self,
+        validator: AIResponseValidator | None = None,
+        metrics: AIValidationMetricsSink | None = None,
+    ) -> None:
         self.validator = validator or AIResponseValidator()
+        self.metrics = metrics
 
     def evaluate(
         self,
@@ -40,7 +46,7 @@ class AIValidationEvaluator:
         for case in cases:
             valid = True
             try:
-                self.validator.validate(case.response, package)
+                self.validator.validate(case.response, package, metrics=self.metrics)
             except ValueError:
                 valid = False
             if valid != case.expected_valid:
