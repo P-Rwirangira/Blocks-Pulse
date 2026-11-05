@@ -22,6 +22,10 @@ The API container applies Alembic migrations before starting Uvicorn. Prometheus
 scrapes `/metrics` every 15 seconds. Grafana provisions the Prometheus datasource
 and dashboards automatically.
 
+The long-running collector exposes its own metrics endpoint on port `8001`; the
+Prometheus configuration scrapes both the API and collector targets. This keeps
+collection and API telemetry separate when they run in different processes.
+
 ## Dashboards
 
 | Dashboard | Purpose | Main signals |
@@ -65,6 +69,9 @@ Run:
 ```text
 python -m pytest tests -q
 ```
+
+The integration suite verifies that the real pool collector emits pool metrics
+and that the collector composition passes telemetry to the runtime service.
 
 Validate dashboard JSON before committing changes. If Docker is available, run
 `docker compose config` and then `docker compose up --build` to verify service

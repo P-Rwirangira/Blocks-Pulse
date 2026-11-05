@@ -6,6 +6,7 @@ from blockpulse.pool_collection import PoolCollectionService
 from blockpulse.pool_events import V2_SYNC_TOPIC
 from blockpulse.rpc import RawLog
 from blockpulse.storage import Database, PoolCursorRepository, PoolEventRepository
+from blockpulse.infrastructure.observability import MetricsRegistry
 
 
 POOL = PoolDefinition(
@@ -56,17 +57,19 @@ def test_pool_collection_uses_confirmed_cursor_range() -> None:
         database = Database("sqlite+aiosqlite:///:memory:")
         await database.create_schema()
         async with database.sessions() as session:
+            metrics = MetricsRegistry()
             service = PoolCollectionService(
                 FakeProvider(),
                 PoolEventRepository(session),
                 PoolCursorRepository(session),
                 confirmations=2,
+                metrics=metrics,
             )
             events, inserted = await service.collect_once(POOL, datetime.now(UTC))
             assert len(events) == 1
             assert inserted == 1
             assert await PoolCursorRepository(session).get(POOL.pool_id) == 103
+            assert 'pool_id="base-weth-usdc"' in metrics.render().decode()
         await database.close()
 
     asyncio.run(scenario())
-
