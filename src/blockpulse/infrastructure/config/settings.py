@@ -1,5 +1,6 @@
 """Application configuration loaded from environment variables."""
 
+from datetime import date
 from functools import lru_cache
 
 from pydantic import AnyHttpUrl, Field
@@ -32,6 +33,17 @@ class Settings(BaseSettings):
     rpc_confirmations: int = Field(default=2, ge=0)
     health_window_minutes: int = Field(default=15, gt=0)
     metrics_port: int = Field(default=8001, gt=0, le=65535)
+    collector_enabled: bool = True
+    detector_enabled: bool = True
+    incident_enabled: bool = True
+    replay_start_date: date = date(2026, 9, 1)
+    replay_end_date: date = date(2026, 9, 30)
+    alertmanager_url: str | None = None
+    rpc_error_rate_alert_threshold: float = Field(default=0.25, ge=0, le=1)
+    rpc_p95_latency_alert_ms: float = Field(default=2_000, ge=0)
+    data_stale_after_seconds: int = Field(default=120, gt=0)
+    incident_alert_severities: list[str] = Field(default_factory=lambda: ["critical"])
+    worker_poll_seconds: float = Field(default=30, gt=0)
     pools_json: str = "[]"
 
 
