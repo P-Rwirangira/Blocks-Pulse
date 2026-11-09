@@ -6,6 +6,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+*.db
+*.db-journal
 
 # Generated prototype assets and temporary inspection files
 tmp/
