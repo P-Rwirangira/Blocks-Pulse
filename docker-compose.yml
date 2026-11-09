@@ -17,6 +17,8 @@ services:
 
   blockpulse:
     build: .
+    env_file:
+      - .env
     environment:
       BLOCKPULSE_DATABASE_URL: postgresql+psycopg://blockpulse:blockpulse@postgres:5432/blockpulse
       BLOCKPULSE_ENVIRONMENT: development
@@ -29,6 +31,8 @@ services:
   blockpulse-collector:
     build: .
     command: ["blockpulse-collect-loop"]
+    env_file:
+      - .env
     environment:
       BLOCKPULSE_DATABASE_URL: postgresql+psycopg://blockpulse:blockpulse@postgres:5432/blockpulse
       BLOCKPULSE_ENVIRONMENT: development
