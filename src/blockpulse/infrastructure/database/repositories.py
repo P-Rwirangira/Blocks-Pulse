@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from hashlib import sha256
 
-from sqlalchemy import JSON, DateTime, Float, Integer, String, select
+from sqlalchemy import BIGINT, JSON, DateTime, Float, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -16,6 +16,7 @@ from blockpulse.domain.models import (
     Incident,
     IncidentEvidence,
     IncidentStatusChange,
+    HistoricalBlock,
     ModelEvaluation,
     PoolEvent,
     RpcObservation,
@@ -44,6 +45,39 @@ class RpcObservationRow(Base):
     latest_parent_hash: Mapped[str | None] = mapped_column(String(100), nullable=True)
     error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     raw_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class HistoricalBlockRow(Base):
+    """Sampled historical chain-state fact with raw RPC provenance."""
+
+    __tablename__ = "historical_blocks"
+
+    block_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    block_number: Mapped[int] = mapped_column(BIGINT, index=True)
+    block_hash: Mapped[str] = mapped_column(String(100))
+    parent_hash: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    block_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    transaction_count: Mapped[int] = mapped_column(BIGINT)
+    gas_used: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    gas_limit: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    base_fee_per_gas: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    source: Mapped[str] = mapped_column(String(40), index=True)
+    raw_payload: Mapped[dict] = mapped_column(JSON)
+
+
+class HistoricalBackfillCursorRow(Base):
+    """Restart cursor for one bounded historical backfill."""
+
+    __tablename__ = "historical_backfill_cursors"
+
+    backfill_key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    chain_id: Mapped[int] = mapped_column(Integer, index=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sample_minutes: Mapped[int] = mapped_column(Integer)
+    last_block_number: Mapped[int] = mapped_column(BIGINT)
 
 
 class PoolEventRow(Base):
@@ -242,6 +276,12 @@ def observation_id(observation: RpcObservation) -> str:
     return sha256(value.encode("utf-8")).hexdigest()
 
 
+def historical_block_id(block: HistoricalBlock) -> str:
+    """Build an idempotent identity from chain and canonical block identity."""
+
+    return f"{block.chain_id}:{block.block_number}:{block.block_hash}"
+
+
 def metric_id(metric: HealthMetric) -> str:
     """Build a stable identity for a derived metric snapshot."""
 
@@ -303,6 +343,72 @@ class ObservationRepository:
             .limit(limit)
         )
         return list(result)
+
+
+class HistoricalBlockRepository:
+    """Repository for append-only historical block facts."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, block: HistoricalBlock) -> bool:
+        key = historical_block_id(block)
+        if await self.session.get(HistoricalBlockRow, key) is not None:
+            return False
+        self.session.add(
+            HistoricalBlockRow(
+                block_id=key,
+                chain_id=block.chain_id,
+                block_number=block.block_number,
+                block_hash=block.block_hash,
+                parent_hash=block.parent_hash,
+                block_timestamp=block.block_timestamp,
+                transaction_count=block.transaction_count,
+                gas_used=block.gas_used,
+                gas_limit=block.gas_limit,
+                base_fee_per_gas=block.base_fee_per_gas,
+                collected_at=block.collected_at,
+                source=block.source,
+                raw_payload=block.raw_payload,
+            )
+        )
+        await self.session.commit()
+        return True
+
+
+class HistoricalBackfillCursorRepository:
+    """Repository for restartable date-bounded historical cursors."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get(self, key: str) -> HistoricalBackfillCursorRow | None:
+        return await self.session.get(HistoricalBackfillCursorRow, key)
+
+    async def save(
+        self,
+        key: str,
+        chain_id: int,
+        start_date: datetime,
+        end_date: datetime,
+        sample_minutes: int,
+        last_block_number: int,
+    ) -> None:
+        row = await self.session.get(HistoricalBackfillCursorRow, key)
+        if row is None:
+            self.session.add(
+                HistoricalBackfillCursorRow(
+                    backfill_key=key,
+                    chain_id=chain_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    sample_minutes=sample_minutes,
+                    last_block_number=last_block_number,
+                )
+            )
+        else:
+            row.last_block_number = max(row.last_block_number, last_block_number)
+        await self.session.commit()
 
 
 class HealthMetricRepository:
@@ -712,6 +818,13 @@ class Database:
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def create_schema(self) -> None:
+        """Create an ad hoc schema only for SQLite development databases.
+
+        PostgreSQL schemas are owned by Alembic so workers cannot race migrations.
+        """
+
+        if self.engine.url.get_backend_name() != "sqlite":
+            return
         async with self.engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 

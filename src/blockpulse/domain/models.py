@@ -50,6 +50,25 @@ class RpcObservation(BaseModel):
     raw_payload: dict[str, Any] | None = None
 
 
+class HistoricalBlock(BaseModel):
+    """Sampled historical block header and activity facts."""
+
+    model_config = ConfigDict(frozen=True)
+
+    chain_id: int = Field(gt=0)
+    block_number: int = Field(ge=0)
+    block_hash: str
+    parent_hash: str | None = None
+    block_timestamp: datetime
+    transaction_count: int = Field(ge=0)
+    gas_used: int | None = Field(default=None, ge=0)
+    gas_limit: int | None = Field(default=None, ge=0)
+    base_fee_per_gas: int | None = Field(default=None, ge=0)
+    collected_at: datetime
+    source: str = "historical_backfill"
+    raw_payload: dict[str, Any]
+
+
 class ReorgSignal(BaseModel):
     """Evidence that one endpoint observed a conflicting chain head."""
 

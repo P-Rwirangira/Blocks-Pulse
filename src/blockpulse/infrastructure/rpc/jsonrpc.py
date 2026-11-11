@@ -81,6 +81,30 @@ class JsonRpcProvider:
             raw_payload=payload,
         )
 
+    async def get_block_by_number(self, block_tag: str) -> dict[str, Any]:
+        """Read one block header and transaction-hash list for historical sampling."""
+
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            response = await client.post(
+                self.url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "eth_getBlockByNumber",
+                    "params": [block_tag, False],
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict) or "result" not in payload:
+                raise RpcProviderError("RPC block response is not an object")
+            if "error" in payload:
+                raise RpcProviderError(str(payload["error"]))
+            result = payload["result"]
+            if not isinstance(result, dict):
+                raise RpcProviderError("historical block was not found")
+            return result
+
     @staticmethod
     def _parse_block_reference(payload: dict[str, Any]) -> tuple[int, str | None, str | None]:
         """Parse a block object or a legacy hexadecimal block response."""
