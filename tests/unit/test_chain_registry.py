@@ -22,7 +22,6 @@ def test_registry_has_three_supported_chain_definitions() -> None:
 
 
 def test_registry_excludes_unconfigured_chains() -> None:
-    settings = Settings(base_rpc_urls=[AnyHttpUrl("https://base.example")])
+    settings = Settings(_env_file=None, base_rpc_urls=[AnyHttpUrl("https://base.example")])
 
     assert [chain.name for chain in enabled_chains(settings)] == ["base"]
-
