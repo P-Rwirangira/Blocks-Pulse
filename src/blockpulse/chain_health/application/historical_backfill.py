@@ -1,5 +1,6 @@
 """Bounded, sampled historical block ingestion for chain-health features."""
 
+import asyncio
 from datetime import UTC, date, datetime, time, timedelta
 
 from blockpulse.domain.models import HistoricalBlock
@@ -11,6 +12,7 @@ from blockpulse.infrastructure.rpc.jsonrpc import JsonRpcProvider
 
 
 BLOCK_TIME_SECONDS = {1: 12.0, 8453: 2.0, 42161: 0.25}
+HISTORICAL_FETCH_BATCH_SIZE = 8
 
 
 class HistoricalBlockBackfillService:
@@ -59,16 +61,33 @@ class HistoricalBlockBackfillService:
 
         fetched = inserted = 0
         while next_block <= end_block and fetched < max_samples:
-            payload = await self._block(hex(next_block))
-            block_time = self._block_time(payload)
-            if block_time >= end:
-                break
-            if block_time >= start:
-                historical = self._to_model(payload, block_time)
-                fetched += 1
-                inserted += int(await self.blocks.add(historical))
-                await self.cursors.save(key, self.provider.chain_id, start, end, sample_minutes, next_block)
-            next_block += step
+            batch_numbers = list(
+                range(
+                    next_block,
+                    min(end_block + 1, next_block + HISTORICAL_FETCH_BATCH_SIZE * step),
+                    step,
+                )
+            )
+            payloads = await asyncio.gather(*(self._block(hex(number)) for number in batch_numbers))
+            for block_number, payload in zip(batch_numbers, payloads, strict=True):
+                block_time = self._block_time(payload)
+                if block_time >= end:
+                    return fetched, inserted
+                if block_time >= start:
+                    historical = self._to_model(payload, block_time)
+                    fetched += 1
+                    inserted += int(await self.blocks.add(historical))
+                    await self.cursors.save(
+                        key,
+                        self.provider.chain_id,
+                        start,
+                        end,
+                        sample_minutes,
+                        block_number,
+                    )
+                if fetched >= max_samples:
+                    return fetched, inserted
+            next_block = batch_numbers[-1] + step
         return fetched, inserted
 
     async def _block(self, tag: str) -> dict:
