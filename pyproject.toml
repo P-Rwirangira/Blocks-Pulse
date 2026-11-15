@@ -37,6 +37,7 @@ blockpulse-collect-loop = "blockpulse.cli:worker_main"
 blockpulse-migrate = "blockpulse.infrastructure.database.migrate:main"
 blockpulse-backfill-health = "blockpulse.interfaces.cli.backfill:main"
 blockpulse-backfill-blocks = "blockpulse.interfaces.cli.historical_backfill:main"
+blockpulse-backfill-pools = "blockpulse.interfaces.cli.pool_backfill:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/blockpulse"]

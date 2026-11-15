@@ -84,14 +84,14 @@ def decode_v3_log(log: RawLog, pool: PoolDefinition, occurred_at: datetime) -> P
             amount1=float(values[2]),
         )
     elif topic == V3_COLLECT_TOPIC:
-        if len(log.topics) < 4 or len(values) != 2:
+        if len(log.topics) < 4 or len(values) != 3:
             raise ValueError("V3 Collect event has invalid indexed or data fields")
         fields.update(
             event_type="collect",
             tick_lower=_topic_int(log.topics[2], 24),
             tick_upper=_topic_int(log.topics[3], 24),
-            amount0=float(values[0]),
-            amount1=float(values[1]),
+            amount0=float(values[1]),
+            amount1=float(values[2]),
         )
     else:
         raise ValueError(f"unsupported V3 event topic: {topic}")

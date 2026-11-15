@@ -26,12 +26,16 @@ class PoolCollectionService:
         cursors: PoolCursorRepository,
         confirmations: int = 2,
         metrics: PoolMetricsSink | None = None,
+        max_range_blocks: int = 10_000,
     ) -> None:
+        if max_range_blocks <= 0:
+            raise ValueError("max_range_blocks must be positive")
         self.provider = provider
         self.events = events
         self.cursors = cursors
         self.confirmations = confirmations
         self.metrics = metrics
+        self.max_range_blocks = max_range_blocks
 
     async def collect_once(
         self, pool: PoolDefinition, observed_at: datetime, target_block: int | None = None
@@ -48,6 +52,7 @@ class PoolCollectionService:
             confirmed_to = min(confirmed_to, target_block)
         last_processed = await self.cursors.get(pool.pool_id)
         from_block = max(pool.start_block, last_processed + 1)
+        confirmed_to = min(confirmed_to, from_block + self.max_range_blocks - 1)
         if confirmed_to < from_block:
             return [], 0
 

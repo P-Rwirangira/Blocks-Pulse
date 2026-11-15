@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from blockpulse.domain import PoolDefinition
 from blockpulse.rpc import RawLog
 from blockpulse.v3_events import (
+    V3_COLLECT_TOPIC,
     V3_MINT_TOPIC,
     V3_SWAP_TOPIC,
     decode_v3_log,
@@ -70,3 +71,20 @@ def test_decode_v3_mint_reads_signed_tick_range() -> None:
     assert event.tick_upper == 120
     assert event.active_liquidity == 1000
 
+
+def test_decode_v3_collect_skips_non_indexed_recipient() -> None:
+    event = decode_v3_log(
+        make_log(
+            V3_COLLECT_TOPIC,
+            word(0x44) + word(1) + word(2),
+            [word(0), word(-120), word(120)],
+        ),
+        POOL,
+        datetime(2026, 9, 1, tzinfo=UTC),
+    )
+
+    assert event.event_type == "collect"
+    assert event.tick_lower == -120
+    assert event.tick_upper == 120
+    assert event.amount0 == 1
+    assert event.amount1 == 2
