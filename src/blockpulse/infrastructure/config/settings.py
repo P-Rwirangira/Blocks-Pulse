@@ -3,7 +3,7 @@
 from datetime import date
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import AliasChoices, AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     base_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
     ethereum_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
     arbitrum_rpc_urls: list[AnyHttpUrl] = Field(default_factory=list)
+    alchemy_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BLOCKPULSE_ALCHEMY_API_KEY", "alchemy"),
+    )
     rpc_timeout_seconds: float = Field(default=10.0, gt=0)
     rpc_retries: int = Field(default=1, ge=0)
     rpc_retry_backoff_seconds: float = Field(default=0.5, ge=0)

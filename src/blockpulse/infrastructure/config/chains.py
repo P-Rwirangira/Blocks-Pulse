@@ -18,21 +18,30 @@ class ChainDefinition:
 def configured_chains(settings: Settings) -> tuple[ChainDefinition, ...]:
     """Build the supported chain registry from typed settings."""
 
+    alchemy = settings.alchemy_api_key.strip() if settings.alchemy_api_key else ""
+    ethereum_urls = tuple(str(url) for url in settings.ethereum_rpc_urls)
+    base_urls = tuple(str(url) for url in settings.base_rpc_urls)
+    arbitrum_urls = tuple(str(url) for url in settings.arbitrum_rpc_urls)
+    if alchemy:
+        ethereum_urls = (f"https://eth-mainnet.g.alchemy.com/v2/{alchemy}", *ethereum_urls)
+        base_urls = (f"https://base-mainnet.g.alchemy.com/v2/{alchemy}", *base_urls)
+        arbitrum_urls = (f"https://arb-mainnet.g.alchemy.com/v2/{alchemy}", *arbitrum_urls)
+
     return (
         ChainDefinition(
             name="ethereum",
             chain_id=1,
-            rpc_urls=tuple(str(url) for url in settings.ethereum_rpc_urls),
+            rpc_urls=ethereum_urls,
         ),
         ChainDefinition(
             name="base",
             chain_id=settings.base_chain_id,
-            rpc_urls=tuple(str(url) for url in settings.base_rpc_urls),
+            rpc_urls=base_urls,
         ),
         ChainDefinition(
             name="arbitrum",
             chain_id=42161,
-            rpc_urls=tuple(str(url) for url in settings.arbitrum_rpc_urls),
+            rpc_urls=arbitrum_urls,
         ),
     )
 
