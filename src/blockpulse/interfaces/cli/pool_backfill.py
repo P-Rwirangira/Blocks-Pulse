@@ -44,7 +44,9 @@ async def run(pool_id: str | None, target_block: int | None, max_range_blocks: i
                     try:
                         head = await provider.observe_latest_block(datetime.now(UTC))
                         if not head.success or head.latest_block_number is None:
-                            raise RuntimeError(f"could not read the latest block for {pool.pool_id}")
+                            raise RpcProviderError(
+                                f"provider {provider.name} could not read the latest block"
+                            )
                         requested_target = (
                             target_block if target_block is not None else head.latest_block_number
                         )
