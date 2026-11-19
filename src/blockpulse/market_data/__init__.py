@@ -1,0 +1,1 @@
+"""Centralized market-data capability."""

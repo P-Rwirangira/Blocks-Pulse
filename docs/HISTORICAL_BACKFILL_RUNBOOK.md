@@ -1,4 +1,29 @@
-# Historical block backfill
+# Historical market-data backfill
+
+The active MVP uses Binance Spot klines as its source of truth. Blockchain and
+Uniswap backfills below are retained as legacy compatibility procedures and are
+not required by the active collector.
+
+## Binance kline backfill
+
+Binance public market data is available without an API key. The backfill stores
+one normalized row per `(symbol, interval, open_time)`, preserves the original
+JSON array, and resumes from the latest stored candle:
+
+```powershell
+blockpulse-backfill-binance --symbol ETHUSDT --interval 1h --start-date 2023-11-18
+```
+
+Use additional symbols explicitly or configure them in `.env`:
+
+```powershell
+blockpulse-backfill-binance --symbol ETHUSDT --symbol BTCUSDT --interval 1h \
+  --start-date 2023-11-18 --end-date 2026-11-18
+```
+
+One-hour candles provide a practical three-year ML baseline with approximately
+26,000 rows per symbol. Use smaller intervals only when the model requires finer
+microstructure detail.
 
 Historical block backfill provides sampled chain-state facts for ML features and
 does not recreate historical RPC latency or error-rate telemetry. Those values are

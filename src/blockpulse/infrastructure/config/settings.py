@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     incident_alert_severities: list[str] = Field(default_factory=lambda: ["critical"])
     worker_poll_seconds: float = Field(default=30, gt=0)
     pools_json: str = "[]"
+    binance_base_url: AnyHttpUrl = "https://data-api.binance.vision"
+    binance_symbols_json: str = '["ETHUSDT"]'
+    binance_interval: str = "1h"
+    binance_kline_limit: int = Field(default=1_000, ge=1, le=1_000)
 
 
 @lru_cache(maxsize=1)

@@ -32,12 +32,15 @@ dev = [
 ]
 
 [project.scripts]
-blockpulse-collect = "blockpulse.cli:main"
-blockpulse-collect-loop = "blockpulse.cli:worker_main"
+blockpulse-collect = "blockpulse.interfaces.cli.binance_collector:main"
+blockpulse-collect-loop = "blockpulse.interfaces.cli.binance_collector:worker_main"
 blockpulse-migrate = "blockpulse.infrastructure.database.migrate:main"
 blockpulse-backfill-health = "blockpulse.interfaces.cli.backfill:main"
 blockpulse-backfill-blocks = "blockpulse.interfaces.cli.historical_backfill:main"
 blockpulse-backfill-pools = "blockpulse.interfaces.cli.pool_backfill:main"
+blockpulse-backfill-binance = "blockpulse.interfaces.cli.binance_backfill:main"
+blockpulse-collect-binance = "blockpulse.interfaces.cli.binance_collector:main"
+blockpulse-collect-binance-loop = "blockpulse.interfaces.cli.binance_collector:worker_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/blockpulse"]

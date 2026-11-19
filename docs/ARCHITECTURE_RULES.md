@@ -2,10 +2,10 @@
 
 ## System boundary
 
-The system follows this direction:
+The active Binance-only system follows this direction:
 
 ```text
-RPC and logs -> ingestion -> validation -> normalized facts -> features
+Binance REST/WebSocket market data -> ingestion -> validation -> normalized facts -> features
              -> anomaly detection -> incidents -> approved AI tools -> analyst UI
 ```
 
@@ -20,9 +20,9 @@ one large collection of modules:
 src/blockpulse/
   domain/                  # stable entities and value objects
   shared/                  # narrow cross-cutting ports
-  chain_health/            # RPC health use cases and detectors
+  chain_health/            # legacy RPC health use cases and detectors
     application/
-  liquidity/               # pool monitoring use cases and DEX adapters
+  liquidity/               # legacy on-chain pool monitoring use cases and DEX adapters
     application/
     adapters/uniswap/v2/
     adapters/uniswap/v3/
@@ -35,6 +35,8 @@ src/blockpulse/
   interfaces/               # HTTP and CLI composition boundaries
     http/
     cli/
+  market_data/              # active centralized-market ingestion
+    adapters/binance/
 ```
 
 New behavior belongs in the capability package that owns it. Domain modules must
@@ -51,7 +53,8 @@ Prefer composition at the HTTP/CLI boundary over global service state.
 
 ### Ingestion
 
-Responsible for transport, retries, batching, endpoint failover, and raw capture. It must not contain dashboard formatting or LLM prompting.
+Responsible for Binance transport, pagination, rate-limit handling, retry policy,
+and raw capture. It must not contain dashboard formatting or LLM prompting.
 
 ### Normalization
 

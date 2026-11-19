@@ -69,6 +69,29 @@ class HistoricalBlock(BaseModel):
     raw_payload: dict[str, Any]
 
 
+class BinanceKline(BaseModel):
+    """One normalized Binance Spot candlestick with its raw source row."""
+
+    model_config = ConfigDict(frozen=True)
+
+    symbol: str = Field(min_length=1)
+    interval: str = Field(min_length=1)
+    open_time: datetime
+    close_time: datetime
+    open_price: float = Field(ge=0)
+    high_price: float = Field(ge=0)
+    low_price: float = Field(ge=0)
+    close_price: float = Field(ge=0)
+    volume: float = Field(ge=0)
+    quote_volume: float = Field(ge=0)
+    trade_count: int = Field(ge=0)
+    taker_buy_volume: float = Field(ge=0)
+    taker_buy_quote_volume: float = Field(ge=0)
+    collected_at: datetime
+    source: str = "binance_spot_rest"
+    raw_payload: list[Any]
+
+
 class ReorgSignal(BaseModel):
     """Evidence that one endpoint observed a conflicting chain head."""
 

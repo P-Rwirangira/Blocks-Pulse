@@ -30,7 +30,7 @@ services:
 
   blockpulse-collector:
     build: .
-    command: ["blockpulse-collect-loop"]
+    command: ["blockpulse-collect-binance-loop"]
     env_file:
       - .env
     environment:

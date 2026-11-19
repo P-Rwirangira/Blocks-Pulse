@@ -1,11 +1,12 @@
 {
   "uid": "blockpulse-liquidity",
-  "title": "BlockPulse Liquidity",
+  "title": "BlockPulse Binance Market Data",
   "schemaVersion": 39,
   "refresh": "15s",
   "time": {"from": "now-24h", "to": "now"},
   "panels": [
-    {"id": 1, "type": "timeseries", "title": "Pool Events", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum by (pool_id, event_type) (rate(blockpulse_pool_events_total[15m]))", "legendFormat": "{{pool_id}} {{event_type}}", "refId": "A"}]},
+    {"id": 1, "type": "timeseries", "title": "Binance Candles Collected", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum by (symbol, interval) (rate(blockpulse_binance_klines_total[15m]))", "legendFormat": "{{symbol}} {{interval}}", "refId": "A"}]},
+    {"id": 4, "type": "timeseries", "title": "Binance Collection Failures", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "rate(blockpulse_binance_collection_failures_total[15m])", "legendFormat": "failures", "refId": "A"}]},
     {"id": 2, "type": "timeseries", "title": "Collection Cycles", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "rate(blockpulse_collection_cycles_total[15m])", "legendFormat": "cycles", "refId": "A"}]},
     {"id": 3, "type": "timeseries", "title": "Collection Duration", "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}, "targets": [{"expr": "histogram_quantile(0.95, rate(blockpulse_collection_duration_seconds_bucket[15m]))", "legendFormat": "p95 duration", "refId": "A"}]}
   ]

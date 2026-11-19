@@ -11,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from blockpulse.domain.models import (
     AnomalyScore,
     AIInteractionAudit,
+    BinanceKline,
     FeatureSnapshot,
     HealthMetric,
     Incident,
@@ -112,6 +113,29 @@ class PoolCursorRow(Base):
 
     pool_id: Mapped[str] = mapped_column(String(120), primary_key=True)
     last_processed_block: Mapped[int] = mapped_column(Integer)
+
+
+class BinanceKlineRow(Base):
+    """Normalized Binance Spot candle with its original public API row."""
+
+    __tablename__ = "binance_klines"
+
+    symbol: Mapped[str] = mapped_column(String(30), primary_key=True)
+    interval: Mapped[str] = mapped_column(String(10), primary_key=True)
+    open_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    close_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    open_price: Mapped[float] = mapped_column(Float)
+    high_price: Mapped[float] = mapped_column(Float)
+    low_price: Mapped[float] = mapped_column(Float)
+    close_price: Mapped[float] = mapped_column(Float)
+    volume: Mapped[float] = mapped_column(Float)
+    quote_volume: Mapped[float] = mapped_column(Float)
+    trade_count: Mapped[int] = mapped_column(BIGINT)
+    taker_buy_volume: Mapped[float] = mapped_column(Float)
+    taker_buy_quote_volume: Mapped[float] = mapped_column(Float)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    source: Mapped[str] = mapped_column(String(40), index=True)
+    raw_payload: Mapped[list] = mapped_column(JSON)
 
 
 class HealthMetricRow(Base):
@@ -807,7 +831,64 @@ class PoolCursorRepository:
             self.session.add(PoolCursorRow(pool_id=pool_id, last_processed_block=block_number))
         elif block_number > row.last_processed_block:
             row.last_processed_block = block_number
+            await self.session.commit()
+
+
+class BinanceKlineRepository:
+    """Repository for idempotent Binance candle persistence and cursors."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add_many(self, klines: Sequence[BinanceKline]) -> int:
+        inserted = 0
+        for kline in klines:
+            identity = {
+                "symbol": kline.symbol,
+                "interval": kline.interval,
+                "open_time": kline.open_time,
+            }
+            if await self.session.get(BinanceKlineRow, identity) is not None:
+                continue
+            self.session.add(
+                BinanceKlineRow(
+                    **identity,
+                    close_time=kline.close_time,
+                    open_price=kline.open_price,
+                    high_price=kline.high_price,
+                    low_price=kline.low_price,
+                    close_price=kline.close_price,
+                    volume=kline.volume,
+                    quote_volume=kline.quote_volume,
+                    trade_count=kline.trade_count,
+                    taker_buy_volume=kline.taker_buy_volume,
+                    taker_buy_quote_volume=kline.taker_buy_quote_volume,
+                    collected_at=kline.collected_at,
+                    source=kline.source,
+                    raw_payload=kline.raw_payload,
+                )
+            )
+            inserted += 1
         await self.session.commit()
+        return inserted
+
+    async def latest_open_time(self, symbol: str, interval: str) -> datetime | None:
+        result = await self.session.scalar(
+            select(BinanceKlineRow.open_time)
+            .where(BinanceKlineRow.symbol == symbol, BinanceKlineRow.interval == interval)
+            .order_by(BinanceKlineRow.open_time.desc())
+            .limit(1)
+        )
+        return result
+
+    async def recent(self, symbol: str, interval: str, limit: int = 500) -> list[BinanceKlineRow]:
+        result = await self.session.scalars(
+            select(BinanceKlineRow)
+            .where(BinanceKlineRow.symbol == symbol, BinanceKlineRow.interval == interval)
+            .order_by(BinanceKlineRow.open_time.desc())
+            .limit(limit)
+        )
+        return list(result)
 
 
 class Database:

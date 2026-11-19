@@ -75,6 +75,17 @@ class MetricsRegistry:
             ("pool_id", "event_type"),
             registry=self.registry,
         )
+        self.binance_klines = Counter(
+            "blockpulse_binance_klines_total",
+            "Normalized Binance candles collected",
+            ("symbol", "interval"),
+            registry=self.registry,
+        )
+        self.binance_failures = Counter(
+            "blockpulse_binance_collection_failures_total",
+            "Binance collection failures",
+            registry=self.registry,
+        )
         self.ai_validation = Counter(
             "blockpulse_ai_validation_total",
             "AI response validation outcomes",
@@ -112,6 +123,12 @@ class MetricsRegistry:
 
     def observe_pool_event(self, pool_id: str, event_type: str) -> None:
         self.pool_events.labels(pool_id, event_type).inc()
+
+    def observe_binance_klines(self, symbol: str, interval: str, count: int) -> None:
+        self.binance_klines.labels(symbol, interval).inc(count)
+
+    def observe_binance_failure(self) -> None:
+        self.binance_failures.inc()
 
     def observe_ai_validation(self, state: str) -> None:
         self.ai_validation.labels(state).inc()

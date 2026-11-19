@@ -1,28 +1,44 @@
 # BlockPulse
 
-BlockPulse is a multi-chain health, liquidity, anomaly-detection, and evidence-grounded AI investigation platform.
+BlockPulse is a Binance Spot market-health, liquidity-proxy, anomaly-detection, and evidence-grounded AI investigation platform.
 
 The current repository begins with the expanded product prototype and the engineering rules that will guide the implementation. The MVP intentionally excludes profitability, trade execution, bridges, and autonomous actions.
 
 ## Phase 1 status
 
-Phase 1 monitors Base RPC health. Phase 2 generalizes the same vertical slice across Ethereum, Base, and Arbitrum using a configuration-driven registry. Phase 3 adds configured Uniswap V2 and V3 pool monitoring with confirmed log ranges, normalized events, restartable cursors, pool metrics, and pool API routes. V3 uses official pool events plus `slot0()`/`liquidity()` state reads; it does not pretend concentrated liquidity is equivalent to V2 reserves.
+The active MVP now uses Binance public Spot market data only. It stores normalized candlesticks, preserves the raw API rows, supports restartable historical backfills, and exposes market data for ML, anomaly detection, Grafana, and evidence-grounded AI. The former RPC and Uniswap modules remain as compatibility code and are not part of the active collector.
 
 ```powershell
 python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 docker compose up -d postgres
 blockpulse-migrate
-blockpulse-collect
-blockpulse-backfill-health 8453 --window-minutes 15
+blockpulse-collect-binance-loop
+blockpulse-backfill-binance --symbol ETHUSDT --interval 1h --start-date 2023-11-18
 uvicorn blockpulse.api:app --reload
 ```
 
-The collector requires a real Base RPC URL in `.env`. Tests use deterministic fakes and SQLite, so they do not require live blockchain access.
+Binance public market-data endpoints do not require an API key. Tests use deterministic fixtures and SQLite, so they do not require live market access.
 
 Production or shared environments should run `blockpulse-migrate` before starting
 the collector or API. Schema changes belong in `migrations/versions/` and must be
 reversible; test databases may continue to use automatic schema creation.
+
+## Binance MVP
+
+Configure symbols in `.env` with `BLOCKPULSE_BINANCE_SYMBOLS_JSON`. The default is
+`ETHUSDT` at one-hour resolution. Historical klines are fetched in pages, written
+idempotently to `binance_klines`, and can be resumed after interruption:
+
+```powershell
+blockpulse-backfill-binance --symbol ETHUSDT --interval 1h --start-date 2023-11-18
+blockpulse-collect-binance-loop
+```
+
+The API endpoint `/api/v1/markets/ETHUSDT/klines?interval=1h&limit=500` returns
+normalized candles with source timestamps and raw evidence. Binance klines provide
+open, high, low, close, volume, quote volume, and trade counts; they are not an
+on-chain liquidity pool or order-book snapshot.
 
 ## Phase 4 status
 
@@ -36,13 +52,14 @@ Use `blockpulse-backfill-health <chain_id>` to materialize historical metrics fr
 stored observations. This is deliberately a projection of captured data; it does
 not claim that a normal public RPC can reconstruct unavailable historical state.
 
-The collector can run any configured subset of the three supported chains. One chain or endpoint failing does not prevent observations from being collected for the others. Pool addresses and token metadata are supplied through `BLOCKPULSE_POOLS_JSON`. V3 pool entries should include `version: "v3"`, `fee_tier`, and `tick_spacing`.
+Legacy chain and pool collectors remain available for migration and comparison, but
+the active Docker collector is Binance-only.
 
 ## MVP direction
 
-- Monitor Ethereum, Base, and Arbitrum.
-- Monitor selected WETH/USDC and WBTC/USDC pools.
-- Track chain health, RPC health, pool health, and asset health.
+- Monitor selected Binance Spot symbols such as ETHUSDT and BTCUSDT.
+- Track price, volume, volatility, trade-count, and liquidity-proxy behavior.
+- Detect stale candles, volume shocks, volatility shifts, and price dislocations.
 - Detect unusual behavior with robust baselines and later multivariate models.
 - Explain incidents through approved read-only analytical tools and verified evidence.
 

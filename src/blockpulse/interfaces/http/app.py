@@ -15,6 +15,7 @@ from blockpulse.domain.models import (
     HealthOverview,
     Incident,
     IncidentStatus,
+    BinanceKline,
     PoolDefinition,
     PoolEvent,
     PoolMetric,
@@ -27,6 +28,7 @@ from blockpulse.infrastructure.database.repositories import (
     Database,
     IncidentRepository,
     ObservationRepository,
+    BinanceKlineRepository,
     PoolEventRepository,
 )
 from blockpulse.liquidity.application.service import PoolService
@@ -257,6 +259,33 @@ def create_app(
     @app.get("/api/v1/pools", response_model=list[PoolDefinition])
     async def pools() -> list[PoolDefinition]:
         return list(configured_pools(settings))
+
+    @app.get("/api/v1/markets/{symbol}/klines", response_model=list[BinanceKline])
+    async def market_klines(symbol: str, interval: str = "1h", limit: int = Query(500, ge=1, le=1_000)) -> list[BinanceKline]:
+        normalized_symbol = symbol.upper()
+        async with app.state.database.sessions() as session:
+            rows = await BinanceKlineRepository(session).recent(normalized_symbol, interval, limit)
+        return [
+            BinanceKline(
+                symbol=row.symbol,
+                interval=row.interval,
+                open_time=row.open_time,
+                close_time=row.close_time,
+                open_price=row.open_price,
+                high_price=row.high_price,
+                low_price=row.low_price,
+                close_price=row.close_price,
+                volume=row.volume,
+                quote_volume=row.quote_volume,
+                trade_count=row.trade_count,
+                taker_buy_volume=row.taker_buy_volume,
+                taker_buy_quote_volume=row.taker_buy_quote_volume,
+                collected_at=row.collected_at,
+                source=row.source,
+                raw_payload=row.raw_payload,
+            )
+            for row in rows
+        ]
 
     @app.get("/api/v1/pools/{pool_id}/events", response_model=list[PoolEvent])
     async def pool_events(pool_id: str, limit: int = 500) -> list[PoolEvent]:
