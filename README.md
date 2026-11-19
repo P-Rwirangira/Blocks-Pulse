@@ -6,7 +6,7 @@ The current repository begins with the expanded product prototype and the engine
 
 ## Phase 1 status
 
-The active MVP now uses Binance public Spot market data only. It stores normalized candlesticks, preserves the raw API rows, supports restartable historical backfills, and exposes market data for ML, anomaly detection, Grafana, and evidence-grounded AI. The former RPC and Uniswap modules remain as compatibility code and are not part of the active collector.
+The active MVP uses Binance public Spot market data only. It stores normalized candlesticks, preserves the raw API rows, supports restartable historical backfills, and exposes market data for ML, anomaly detection, Grafana, and evidence-grounded AI. The former RPC and Uniswap ingestion code has been removed from the runtime.
 
 ```powershell
 python -m pip install -e ".[dev]"
@@ -40,20 +40,11 @@ normalized candles with source timestamps and raw evidence. Binance klines provi
 open, high, low, close, volume, quote volume, and trade counts; they are not an
 on-chain liquidity pool or order-book snapshot.
 
-## Phase 4 status
+## Ingestion status
 
-Phase 4 ingestion reliability is implemented. The system now provides retry
-backoff, endpoint circuit breaking, continuous collection, raw RPC payload and
-block-identity capture, reorganization signals, restartable pool backfill,
-historical health projection, persisted quality reports, endpoint scoring,
+The active ingestion path is Binance-only. It provides retryable collection,
+idempotent kline writes, restartable historical backfills, raw source payloads,
 readiness checks, structured collection counters, and reversible migrations.
-
-Use `blockpulse-backfill-health <chain_id>` to materialize historical metrics from
-stored observations. This is deliberately a projection of captured data; it does
-not claim that a normal public RPC can reconstruct unavailable historical state.
-
-Legacy chain and pool collectors remain available for migration and comparison, but
-the active Docker collector is Binance-only.
 
 ## MVP direction
 
@@ -83,5 +74,5 @@ and time-aware evaluation records. Phase 6 now adds deterministic incident
 lifecycle, evidence packages, read-only investigation tools, grounded AI
 validation, operator APIs, and privacy-safe AI audit records. Phase 7 adds a
 Grafana-only observability layer with Prometheus metrics and reproducible local
-dashboard provisioning for chain health, liquidity, incidents, ML, and data
-quality; no custom frontend is required.
+dashboard provisioning for Binance market data, incidents, ML, and data quality;
+no custom frontend is required.

@@ -30,11 +30,10 @@ collection and API telemetry separate when they run in different processes.
 
 | Dashboard | Purpose | Main signals |
 | --- | --- | --- |
-| BlockPulse Overview | Overall service view | HTTP traffic, RPC error rate, latency, anomalies |
-| Chain Health | Chain and endpoint reliability | health severity, RPC outcomes, API latency |
+| BlockPulse Overview | Overall service view | HTTP traffic, Binance collection, latency, anomalies |
 | Incidents | Operator workload | active incidents, anomaly rate, HTTP failures |
 | ML Anomalies | Detector behavior | detector rate and severity distribution |
-| Liquidity | Pool ingestion operations | pool events, collection cycles, collection duration |
+| Binance Market Data | Binance ingestion operations | candles, collection cycles, collection failures |
 | Data Quality | Trustworthiness of derived views | valid/degraded quality state by scope |
 
 Dashboard JSON is provisioned from `monitoring/grafana/dashboards/` and must stay
@@ -51,13 +50,11 @@ Important metrics include:
 
 - `blockpulse_http_requests_total`
 - `blockpulse_http_request_duration_seconds`
-- `blockpulse_rpc_observations_total`
-- `blockpulse_rpc_latency_seconds`
-- `blockpulse_chain_health_status`
 - `blockpulse_anomalies_total`
 - `blockpulse_active_incidents`
 - `blockpulse_data_quality_status`
-- `blockpulse_pool_events_total`
+- `blockpulse_binance_klines_total`
+- `blockpulse_binance_collection_failures_total`
 - `blockpulse_collection_cycles_total`
 - `blockpulse_collection_duration_seconds`
 - `blockpulse_ai_validation_total`
@@ -70,8 +67,8 @@ Run:
 python -m pytest tests -q
 ```
 
-The integration suite verifies that the real pool collector emits pool metrics
-and that the collector composition passes telemetry to the runtime service.
+The integration suite verifies the Binance collector and API composition with
+deterministic fixtures; it does not require a live exchange connection.
 
 Validate dashboard JSON before committing changes. If Docker is available, run
 `docker compose config` and then `docker compose up --build` to verify service

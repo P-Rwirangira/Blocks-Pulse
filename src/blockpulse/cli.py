@@ -1,4 +1,3 @@
-"""Compatibility facade; use interfaces.cli.collector."""
+"""Compatibility facade; use the Binance collector CLI."""
 
-from blockpulse.interfaces.cli.collector import *  # noqa: F403
-
+from blockpulse.interfaces.cli.binance_collector import *  # noqa: F403

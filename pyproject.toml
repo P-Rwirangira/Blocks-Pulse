@@ -5,14 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "blockpulse"
 version = "0.1.0"
-description = "Python-only multi-chain health and liquidity intelligence platform"
+description = "Python-only Binance market-health and anomaly intelligence platform"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1",
     "httpx>=0.27,<1",
-    "eth-hash[pycryptodome]>=0.7,<1",
-    "eth-utils>=5,<6",
     "pydantic>=2.9,<3",
     "pydantic-settings>=2.6,<3",
     "sqlalchemy[asyncio]>=2.0,<3",
@@ -35,9 +33,6 @@ dev = [
 blockpulse-collect = "blockpulse.interfaces.cli.binance_collector:main"
 blockpulse-collect-loop = "blockpulse.interfaces.cli.binance_collector:worker_main"
 blockpulse-migrate = "blockpulse.infrastructure.database.migrate:main"
-blockpulse-backfill-health = "blockpulse.interfaces.cli.backfill:main"
-blockpulse-backfill-blocks = "blockpulse.interfaces.cli.historical_backfill:main"
-blockpulse-backfill-pools = "blockpulse.interfaces.cli.pool_backfill:main"
 blockpulse-backfill-binance = "blockpulse.interfaces.cli.binance_backfill:main"
 blockpulse-collect-binance = "blockpulse.interfaces.cli.binance_collector:main"
 blockpulse-collect-binance-loop = "blockpulse.interfaces.cli.binance_collector:worker_main"

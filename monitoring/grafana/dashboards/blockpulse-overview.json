@@ -7,8 +7,8 @@
   "templating": {"list": []},
   "panels": [
     {"id": 1, "type": "stat", "title": "HTTP Requests (5m)", "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}, "targets": [{"expr": "sum(increase(blockpulse_http_requests_total[5m]))", "refId": "A"}]},
-    {"id": 2, "type": "stat", "title": "RPC Error Rate", "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}, "targets": [{"expr": "sum(rate(blockpulse_rpc_observations_total{success=\"false\"}[5m])) / sum(rate(blockpulse_rpc_observations_total[5m]))", "refId": "A"}], "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []}},
-    {"id": 3, "type": "timeseries", "title": "RPC Latency", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le, chain_id) (rate(blockpulse_rpc_latency_seconds_bucket[5m])))", "legendFormat": "chain {{chain_id}} p95", "refId": "A"}]},
+    {"id": 2, "type": "stat", "title": "Binance Collection Failures", "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}, "targets": [{"expr": "increase(blockpulse_binance_collection_failures_total[5m])", "refId": "A"}]},
+    {"id": 3, "type": "timeseries", "title": "Binance Candles", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}, "targets": [{"expr": "sum by (symbol, interval) (rate(blockpulse_binance_klines_total[5m]))", "legendFormat": "{{symbol}} {{interval}}", "refId": "A"}]},
     {"id": 4, "type": "timeseries", "title": "Anomalies by Severity", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}, "targets": [{"expr": "sum by (severity) (rate(blockpulse_anomalies_total[15m]))", "legendFormat": "{{severity}}", "refId": "A"}]}
   ]
 }

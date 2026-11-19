@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from blockpulse.detectors import detect_rpc_anomaly
+from blockpulse.chain_health.application.detectors import detect_rpc_anomaly
 from blockpulse.domain import AnomalyScore, FeatureSnapshot, HealthMetric, HealthStatus, IncidentStatus, RpcObservation
 from blockpulse.incidents import IncidentService
 from blockpulse.incidents.application.ai_validation import AIResponseValidator

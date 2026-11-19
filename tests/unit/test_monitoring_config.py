@@ -7,7 +7,7 @@ ROOT = Path(__file__).parents[2]
 
 def test_grafana_dashboards_are_valid_json() -> None:
     dashboards = list((ROOT / "monitoring" / "grafana" / "dashboards").glob("*.json"))
-    assert len(dashboards) == 6
+    assert len(dashboards) == 5
     for dashboard in dashboards:
         payload = json.loads(dashboard.read_text(encoding="utf-8"))
         assert payload["uid"].startswith("blockpulse-")

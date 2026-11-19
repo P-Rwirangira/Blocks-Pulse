@@ -19,7 +19,6 @@ from blockpulse.domain.models import (
     IncidentStatusChange,
     HistoricalBlock,
     ModelEvaluation,
-    PoolEvent,
     RpcObservation,
 )
 from blockpulse.chain_health.application.quality import ObservationQualityReport
@@ -79,40 +78,6 @@ class HistoricalBackfillCursorRow(Base):
     end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     sample_minutes: Mapped[int] = mapped_column(Integer)
     last_block_number: Mapped[int] = mapped_column(BIGINT)
-
-
-class PoolEventRow(Base):
-    """Append-only normalized pool event record."""
-
-    __tablename__ = "pool_events"
-
-    event_id: Mapped[str] = mapped_column(String(160), primary_key=True)
-    pool_id: Mapped[str] = mapped_column(String(120), index=True)
-    chain_id: Mapped[int] = mapped_column(Integer, index=True)
-    block_number: Mapped[int] = mapped_column(Integer, index=True)
-    block_hash: Mapped[str] = mapped_column(String(100))
-    transaction_hash: Mapped[str] = mapped_column(String(100))
-    log_index: Mapped[int] = mapped_column(Integer)
-    event_type: Mapped[str] = mapped_column(String(30), index=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    amount0: Mapped[float | None] = mapped_column(Float, nullable=True)
-    amount1: Mapped[float | None] = mapped_column(Float, nullable=True)
-    reserve0: Mapped[float | None] = mapped_column(Float, nullable=True)
-    reserve1: Mapped[float | None] = mapped_column(Float, nullable=True)
-    sqrt_price_x96: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    tick: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    active_liquidity: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    tick_lower: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    tick_upper: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
-class PoolCursorRow(Base):
-    """Last successfully processed confirmed block for one pool."""
-
-    __tablename__ = "pool_cursors"
-
-    pool_id: Mapped[str] = mapped_column(String(120), primary_key=True)
-    last_processed_block: Mapped[int] = mapped_column(Integer)
 
 
 class BinanceKlineRow(Base):
@@ -762,76 +727,6 @@ class AIInteractionAuditRepository:
             .limit(limit)
         )
         return list(result)
-
-
-class PoolEventRepository:
-    """Repository implementing idempotent normalized event persistence."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
-    async def add_many(self, events: Sequence[PoolEvent]) -> int:
-        """Insert normalized events and ignore duplicate event identities."""
-
-        inserted = 0
-        for event in events:
-            if await self.session.get(PoolEventRow, event.event_id) is not None:
-                continue
-            self.session.add(
-                PoolEventRow(
-                    event_id=event.event_id,
-                    pool_id=event.pool_id,
-                    chain_id=event.chain_id,
-                    block_number=event.block_number,
-                    block_hash=event.block_hash,
-                    transaction_hash=event.transaction_hash,
-                    log_index=event.log_index,
-                    event_type=event.event_type,
-                    occurred_at=event.occurred_at,
-                    amount0=event.amount0,
-                    amount1=event.amount1,
-                    reserve0=event.reserve0,
-                    reserve1=event.reserve1,
-                    sqrt_price_x96=(str(event.sqrt_price_x96) if event.sqrt_price_x96 is not None else None),
-                    tick=event.tick,
-                    active_liquidity=(str(event.active_liquidity) if event.active_liquidity is not None else None),
-                    tick_lower=event.tick_lower,
-                    tick_upper=event.tick_upper,
-                )
-            )
-            inserted += 1
-        await self.session.commit()
-        return inserted
-
-    async def recent(self, pool_id: str, limit: int = 500) -> list[PoolEventRow]:
-        """Return recent events for a pool, newest first."""
-
-        result = await self.session.scalars(
-            select(PoolEventRow)
-            .where(PoolEventRow.pool_id == pool_id)
-            .order_by(PoolEventRow.occurred_at.desc(), PoolEventRow.log_index.desc())
-            .limit(limit)
-        )
-        return list(result)
-
-
-class PoolCursorRepository:
-    """Repository for restartable pool block-range cursors."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
-    async def get(self, pool_id: str) -> int:
-        row = await self.session.get(PoolCursorRow, pool_id)
-        return row.last_processed_block if row else -1
-
-    async def advance(self, pool_id: str, block_number: int) -> None:
-        row = await self.session.get(PoolCursorRow, pool_id)
-        if row is None:
-            self.session.add(PoolCursorRow(pool_id=pool_id, last_processed_block=block_number))
-        elif block_number > row.last_processed_block:
-            row.last_processed_block = block_number
-            await self.session.commit()
 
 
 class BinanceKlineRepository:

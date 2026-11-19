@@ -21,9 +21,8 @@ aligned into `FeatureVector` rows; incomplete windows are excluded explicitly.
 
 Implemented feature families:
 
-- RPC error rate, P95 latency, and block disagreement.
-- Pool swaps, volumes, price, liquidity, ticks, and active liquidity.
-- Cross-chain asset-pair price mean and dispersion.
+- Binance candles, volumes, price, volatility, and trade-count behavior.
+- Rolling price/volume dispersion and market-liquidity proxies.
 
 ## Detectors
 
@@ -47,7 +46,7 @@ events, detection delay, and behavior under stale or incomplete data.
 ## Phase 5 completion checklist
 
 - [x] Versioned feature contract and stable source identities
-- [x] RPC, liquidity, and cross-chain feature generation
+- [x] Binance candle, volume, volatility, and liquidity-proxy feature generation
 - [x] Feature snapshot persistence and idempotency
 - [x] Aligned multivariate feature vectors
 - [x] Robust MAD baseline

@@ -18,7 +18,7 @@ AnomalyScore
 
 ## Incident lifecycle
 
-Incidents are grouped deterministically by chain, entity, severity, and sorted
+Incidents are grouped deterministically by market entity, severity, and sorted
 drivers. Valid transitions are explicit:
 
 ```text
@@ -53,7 +53,7 @@ citations, missing evidence, quality disclosure, and unsupported numeric claims.
 
 ## API surface
 
-- `GET /api/v1/incidents?chain_id=&limit=` lists incident projections.
+- `GET /api/v1/incidents?limit=` lists incident projections.
 - `GET /api/v1/incidents/{incident_id}` returns one incident detail projection.
 - `GET /api/v1/incidents/{incident_id}/evidence` returns typed evidence.
 - `GET /api/v1/incidents/{incident_id}/timeline` returns status history.
@@ -68,6 +68,6 @@ is tested through upgrade, rollback, and re-upgrade.
 
 Run `python -m pytest tests -q`. The suite covers deterministic grouping and time
 windows, transition rejection, API lifecycle behavior, evidence idempotency,
-raw observation evidence, package quality warnings, allow-listed tools, unsupported
+market-data evidence, package quality warnings, allow-listed tools, unsupported
 evidence references, unsupported numerical AI claims, AI audit persistence, and
 SQLite migration rollback.

@@ -10,7 +10,6 @@ from blockpulse.domain.models import (
     FeatureSnapshot,
     Incident,
     IncidentEvidence,
-    PoolEvent,
     RpcObservation,
 )
 
@@ -26,7 +25,6 @@ class EvidencePackageBuilder:
         *,
         generated_at: datetime,
         observations: Sequence[RpcObservation] = (),
-        pool_events: Sequence[PoolEvent] = (),
         quality_warnings: Sequence[str] = (),
     ) -> EvidencePackage:
         evidence = [
@@ -70,18 +68,6 @@ class EvidencePackageBuilder:
                     summary=(f"{observation.endpoint_name} {'succeeded' if observation.success else 'failed'} "
                              f"in {observation.latency_ms}ms"),
                     payload=observation.model_dump(mode="json"),
-                )
-            )
-        for event in sorted(pool_events, key=lambda item: (item.occurred_at, item.event_id)):
-            evidence.append(
-                IncidentEvidence(
-                    evidence_id=self._evidence_id(incident.incident_id, "pool_event", event.event_id),
-                    incident_id=incident.incident_id,
-                    evidence_type="pool_event",
-                    source_id=event.event_id,
-                    observed_at=event.occurred_at,
-                    summary=f"{event.event_type} on pool {event.pool_id} at block {event.block_number}",
-                    payload=event.model_dump(mode="json"),
                 )
             )
         return EvidencePackage(

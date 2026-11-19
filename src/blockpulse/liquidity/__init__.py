@@ -1,2 +1,0 @@
-"""Liquidity monitoring bounded context."""
-
